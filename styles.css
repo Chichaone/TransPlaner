@@ -281,6 +281,44 @@ body.dark .plan-card {
   margin-bottom: 1rem;
 }
 
+.shipment-form {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: end;
+}
+
+.shipment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+body.dark .shipment-field {
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.shipment-field input {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: inherit;
+}
+
+body.dark .shipment-field input {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.shipment-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .plan-grid-table,
 .shipments-table {
   width: 100%;
