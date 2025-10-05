@@ -65,15 +65,16 @@ const method5 = {
 
     const totalTonnage = payloadCapacity * staticLoadFactor * totalTrips;
     const tonKilometres = payloadCapacity * staticLoadFactor * (
-      tripsFirst * loadedDistance1 + tripsSecond * loadedDistance2,
+      tripsFirst * loadedDistance1 + tripsSecond * loadedDistance2
     );
 
     const distanceBase = zeroRun1 + routeLength * actualTurns;
-    const totalDistance = Number.isInteger(actualTurns)
+    const distanceWithEnding = Number.isInteger(actualTurns)
       ? distanceBase + zeroRun3 - emptyRun2
       : distanceBase + zeroRun2 - emptyRun1;
+    const totalDistance = Math.max(distanceWithEnding, 0);
 
-    const totalServiceTime = serviceTime * tripsFirst + serviceTime * tripsSecond;
+    const totalServiceTime = serviceTime * (tripsFirst + tripsSecond);
     const actualShiftTime = safeDivide(totalDistance, technicalSpeed) + totalServiceTime;
 
     const betaTrip1 = safeDivide(loadedDistance1, loadedDistance1 + emptyRun1);
@@ -83,6 +84,8 @@ const method5 = {
       loadedDistance1 * tripsFirst + loadedDistance2 * tripsSecond,
       totalDistance,
     );
+
+    const actualTurnsDisplay = Math.round(actualTurns * 2) / 2;
 
     return {
       'Длина маршрута (lₘ = l_g₁ + lₓ₁ + l_g₂ + lₓ₂), км': formatNumber(routeLength),
@@ -95,8 +98,9 @@ const method5 = {
       'Тонно-километры первой ездки (Pₑ₁), ткм': formatNumber(tonKmFirstTrip),
       'Тонно-километры второй ездки (Pₑ₂), ткм': formatNumber(tonKmSecondTrip),
       'Тонно-километры за оборот (Pₒ), ткм': formatNumber(tonKmPerCycle),
-      'Теоретическое число оборотов (Zₒ = Tₙ / tₒ)': formatNumber(theoreticalTurns, 2),
+      'Теоретическое число оборотов (Tₙ / tₒ)': formatNumber(theoreticalTurns, 2),
       'Целое число оборотов [Tₙ / tₒ], шт': wholeTurns,
+      'Фактическое число оборотов (Zₒ факт), шт': formatNumber(actualTurnsDisplay, 1),
       'Остаток времени после целых оборотов (ΔTₙ), ч': formatNumber(deltaTime),
       'Необходимое время второй ездки (tₑₙ₂), ч': formatNumber(requiredSecondTripTime),
       'Решение о дополнительной ездке': canPerformExtraSecondTrip ? 'выполнима' : 'не выполнима',

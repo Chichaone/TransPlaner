@@ -52,18 +52,19 @@ const method2 = {
     const baseTrips = wholeTurns * tripsPerTurn;
     const tripsForward = wholeTurns + (canPerformExtraTrip ? 1 : 0);
     const tripsReturn = wholeTurns;
-    const totalTrips = tripsForward + tripsReturn;
+    const totalTrips = baseTrips + (canPerformExtraTrip ? 1 : 0);
     const actualTurns = wholeTurns + (canPerformExtraTrip ? 0.5 : 0);
 
     const totalTonnage = tonnagePerTrip * totalTrips;
     const tonKilometres = payloadCapacity * loadFactor * (
-      tripsForward * forwardDistance + tripsReturn * returnDistance,
+      tripsForward * forwardDistance + tripsReturn * returnDistance
     );
 
     const distanceBase = zeroRun1 + routeLength * actualTurns;
-    const totalDistance = Number.isInteger(actualTurns)
+    const distanceWithEnding = Number.isInteger(actualTurns)
       ? distanceBase + zeroRun3 - emptyDistance
       : distanceBase + zeroRun2;
+    const totalDistance = Math.max(distanceWithEnding, 0);
 
     const actualShiftTime = safeDivide(totalDistance, technicalSpeed) + serviceTime * totalTrips;
 
@@ -75,6 +76,8 @@ const method2 = {
       totalDistance,
     );
 
+    const actualTurnsDisplay = Math.round(actualTurns * 2) / 2;
+
     return {
       'Длина маршрута (lₘ = l_g₁ + l_g₂ + lₓ₂), км': formatNumber(routeLength),
       'Время первой ездки (tₑ₁), ч': formatNumber(firstTripTime),
@@ -85,8 +88,9 @@ const method2 = {
       'Тонно-километры первой ездки (Pₑ₁), ткм': formatNumber(tonKmFirstTrip),
       'Тонно-километры второй ездки (Pₑ₂), ткм': formatNumber(tonKmSecondTrip),
       'Тонно-километры за оборот (Pₒ), ткм': formatNumber(tonKmPerCycle),
-      'Теоретическое число оборотов (Zₒ = Tₙ / tₒ)': formatNumber(theoreticalTurns, 2),
+      'Теоретическое число оборотов (Tₙ / tₒ)': formatNumber(theoreticalTurns, 2),
       'Целое число оборотов [Tₙ / tₒ], шт': wholeTurns,
+      'Фактическое число оборотов (Zₒ факт), шт': formatNumber(actualTurnsDisplay, 1),
       'Остаток времени после целых оборотов (ΔTₙ), ч': formatNumber(deltaTime),
       'Необходимое время дополнительной ездки (tₑₙ), ч': formatNumber(requiredTime),
       'Решение о дополнительной ездке': canPerformExtraTrip ? 'выполнима' : 'не выполнима',
