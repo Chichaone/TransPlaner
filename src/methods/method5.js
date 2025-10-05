@@ -2,9 +2,9 @@ import { formatNumber, safeDivide, toNumber } from '../utils.js';
 
 const method5 = {
   id: 'ring-route',
-  name: '2.2. Кольцевой маршрут',
+  name: '5. Кольцевой маршрут',
   description:
-    'Методика 2.2 описывает расчёт показателей работы автомобиля на кольцевом маршруте с двумя гружёными и двумя холостыми участками.',
+    'Методика описывает расчёт показателей работы автомобиля на кольцевом маршруте с двумя гружёными и двумя холостыми участками.',
   inputs: [
     { name: 'payloadCapacity', label: 'Грузоподъёмность автомобиля (q), т', min: 0, step: 0.1 },
     {
@@ -15,7 +15,7 @@ const method5 = {
       step: 0.01,
     },
     { name: 'shiftDuration', label: 'Плановое время в наряде (Tₙ), ч', min: 0, step: 0.1 },
-    { name: 'serviceTime', label: 'Время на погрузку-выгрузку (tₚᵥ₁ = tₚᵥ₂), ч', min: 0, step: 0.1 },
+    { name: 'serviceTime', label: 'Время на погрузку-выгрузку (tₚᵥ), ч', min: 0, step: 0.1 },
     { name: 'loadedDistance1', label: 'Первый гружёный пробег (l_g₁), км', min: 0, step: 0.1 },
     { name: 'loadedDistance2', label: 'Второй гружёный пробег (l_g₂), км', min: 0, step: 0.1 },
     { name: 'zeroRun1', label: 'Первый нулевой пробег (lₙ₁), км', min: 0, step: 0.1 },
@@ -55,7 +55,8 @@ const method5 = {
     const theoreticalTurns = safeDivide(shiftDuration, cycleTime);
     const wholeTurns = Math.floor(theoreticalTurns);
     const deltaTime = shiftDuration - wholeTurns * cycleTime;
-    const requiredSecondTripTime = safeDivide(loadedDistance2, technicalSpeed) + serviceTime;
+    const requiredSecondTripTime =
+      safeDivide(loadedDistance2, technicalSpeed) + serviceTime;
     const canPerformExtraSecondTrip = technicalSpeed > 0 && deltaTime >= requiredSecondTripTime;
 
     const tripsFirst = wholeTurns;
@@ -63,10 +64,9 @@ const method5 = {
     const totalTrips = tripsFirst + tripsSecond;
     const actualTurns = wholeTurns + (canPerformExtraSecondTrip ? 0.5 : 0);
 
-    const totalTonnage = payloadCapacity * staticLoadFactor * totalTrips;
-    const tonKilometres = payloadCapacity * staticLoadFactor * (
-      tripsFirst * loadedDistance1 + tripsSecond * loadedDistance2
-    );
+    const totalTonnage = tonnageFirstTrip * tripsFirst + tonnageSecondTrip * tripsSecond;
+    const tonKilometres =
+      tonKmFirstTrip * tripsFirst + tonKmSecondTrip * tripsSecond;
 
     const distanceBase = zeroRun1 + routeLength * actualTurns;
     const distanceWithEnding = Number.isInteger(actualTurns)

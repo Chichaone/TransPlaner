@@ -2,19 +2,19 @@ import { formatNumber, safeDivide, toNumber } from '../utils.js';
 
 const method1 = {
   id: 'pendulum-empty-return',
-  name: '2.1. Маятниковый маршрут с обратным не гружёным пробегом',
+  name: '1. Маятниковый маршрут с обратным не гружёным пробегом',
   description:
-    'Методика 2.1 рассчитывает показатели работы автомобиля на маятниковом маршруте с холостым обратным пробегом.',
+    'Методика рассчитывает показатели работы автомобиля на маятниковом маршруте с холостым обратным пробегом.',
   inputs: [
-    { name: 'payloadCapacity', label: 'Грузоподъёмность автомобиля (q), т', min: 0, step: 0.1 },
-    { name: 'loadFactor', label: 'Коэффициент использования грузоподъёмности (γ)', min: 0, max: 1, step: 0.01 },
-    { name: 'shiftDuration', label: 'Плановое время в наряде (Tₙ), ч', min: 0, step: 0.1 },
-    { name: 'serviceTime', label: 'Время на погрузку-выгрузку (tₚᵥ), ч', min: 0, step: 0.1 },
-    { name: 'loadedDistance', label: 'Расстояние перевозки груза (l_g), км', min: 0, step: 0.1 },
-    { name: 'zeroRun1', label: 'Первый нулевой пробег (lₙ₁), км', min: 0, step: 0.1 },
-    { name: 'zeroRun2', label: 'Второй нулевой пробег (lₙ₂), км', min: 0, step: 0.1 },
-    { name: 'emptyDistance', label: 'Холостой пробег (lₓ), км', min: 0, step: 0.1 },
-    { name: 'technicalSpeed', label: 'Среднетехническая скорость (Vₜ), км/ч', min: 0, step: 0.1 },
+    { name: 'payloadCapacity', label: 'Грузоподъёмность автомобиля, т', min: 0, step: 0.1 },
+    { name: 'loadFactor', label: 'Коэффициент использования грузоподъёмности', min: 0, max: 1, step: 0.01 },
+    { name: 'shiftDuration', label: 'Плановое время в наряде, ч', min: 0, step: 0.1 },
+    { name: 'serviceTime', label: 'Время на погрузку-выгрузку, ч', min: 0, step: 0.1 },
+    { name: 'loadedDistance', label: 'Расстояние перевозки груза, км', min: 0, step: 0.1 },
+    { name: 'zeroRun1', label: 'Первый нулевой пробег, км', min: 0, step: 0.1 },
+    { name: 'zeroRun2', label: 'Второй нулевой пробег, км', min: 0, step: 0.1 },
+    { name: 'emptyDistance', label: 'Холостой пробег, км', min: 0, step: 0.1 },
+    { name: 'technicalSpeed', label: 'Среднетехническая скорость, км/ч', min: 0, step: 0.1 },
   ],
   calculate: (values) => {
     const payloadCapacity = toNumber(values.payloadCapacity);
