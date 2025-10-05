@@ -80,19 +80,21 @@ const computeCycleMetrics = ({
 
 const methods = [
   {
-    id: 'pendulum-empty',
-    name: '2.1.1. Маятниковый маршрут с обратным порожним пробегом',
+    id: 'pendulum-partial-loaded',
+    name: '2.1.1. Маятниковый маршрут с обратным гружёным пробегом не на всём расстоянии (γ₁ = γ₂)',
     description:
-      'Прямое плечо выполняется с грузом, обратное — порожняком. Рассчёт следует методике 2.1.1: используйте нормативные данные из таблицы задания.',
+      'Методика 2.1.1 учитывает два гружёных плеча маятникового маршрута и холостой участок на обратном пути. Заполните исходные данные из таблицы задания и получите показатели сменной работы автомобиля.',
     inputs: [
       { name: 'payloadCapacity', label: 'Грузоподъёмность автомобиля (q), т', min: 0, step: 0.1 },
       { name: 'loadFactor', label: 'Коэффициент использования грузоподъёмности (γ)', min: 0, step: 0.01, max: 1 },
       { name: 'shiftDuration', label: 'Плановое время в наряде (Tₙ), ч', min: 0, step: 0.1 },
-      { name: 'serviceTime', label: 'Время на погрузку-разгрузку (tₚᵥ), ч', min: 0, step: 0.1 },
-      { name: 'loadedDistance', label: 'Расстояние перевозки груза (l_g), км', min: 0, step: 0.1 },
-      { name: 'emptyDistance', label: 'Холостой пробег (lₓ), км', min: 0, step: 0.1 },
+      { name: 'serviceTime', label: 'Время на погрузку-выгрузку (tₚᵥ), ч', min: 0, step: 0.1 },
+      { name: 'forwardLoadedDistance', label: 'Расстояние перевозки груза в прямом направлении (l_g₁), км', min: 0, step: 0.1 },
+      { name: 'returnLoadedDistance', label: 'Расстояние перевозки груза в обратном направлении (l_g₂), км', min: 0, step: 0.1 },
       { name: 'zeroRun1', label: 'Первый нулевой пробег (lₙ₁), км', min: 0, step: 0.1 },
       { name: 'zeroRun2', label: 'Второй нулевой пробег (lₙ₂), км', min: 0, step: 0.1 },
+      { name: 'zeroRun3', label: 'Третий нулевой пробег (lₙ₃), км', min: 0, step: 0.1 },
+      { name: 'emptyReturnDistance', label: 'Холостой пробег (lₓ₂), км', min: 0, step: 0.1 },
       { name: 'technicalSpeed', label: 'Среднетехническая скорость (Vₜ), км/ч', min: 0, step: 0.1 },
     ],
     calculate: (values) => {
@@ -100,46 +102,89 @@ const methods = [
       const loadFactor = toNumber(values.loadFactor);
       const shiftDuration = toNumber(values.shiftDuration);
       const serviceTime = toNumber(values.serviceTime);
-      const loadedDistance = toNumber(values.loadedDistance);
-      const emptyDistance = toNumber(values.emptyDistance);
+      const forwardLoadedDistance = toNumber(values.forwardLoadedDistance);
+      const returnLoadedDistance = toNumber(values.returnLoadedDistance);
       const zeroRun1 = toNumber(values.zeroRun1);
       const zeroRun2 = toNumber(values.zeroRun2);
+      const zeroRun3 = toNumber(values.zeroRun3);
+      const emptyReturnDistance = toNumber(values.emptyReturnDistance);
       const technicalSpeed = toNumber(values.technicalSpeed);
 
-      const routeLength = loadedDistance + emptyDistance;
-      const cycleTime = safeDivide(routeLength, technicalSpeed) + serviceTime;
+      const routeLength = forwardLoadedDistance + returnLoadedDistance + emptyReturnDistance;
+
+      const firstTripTime = safeDivide(forwardLoadedDistance, technicalSpeed) + serviceTime;
+      const secondTripTime = safeDivide(returnLoadedDistance + emptyReturnDistance, technicalSpeed) + serviceTime;
+      const cycleTime = firstTripTime + secondTripTime;
+
       const tonnagePerTrip = payloadCapacity * loadFactor;
-      const tonKmPerTrip = payloadCapacity * loadFactor * loadedDistance;
+      const tonnagePerCycle = tonnagePerTrip * 2;
 
-      const baseTrips = Math.floor(safeDivide(shiftDuration, cycleTime));
-      const deltaTime = shiftDuration - baseTrips * cycleTime;
-      const requiredTimeForExtra = safeDivide(loadedDistance, technicalSpeed) + serviceTime;
-      const canPerformExtraTrip = deltaTime >= requiredTimeForExtra && technicalSpeed > 0;
-      const trips = baseTrips + (canPerformExtraTrip ? 1 : 0);
+      const tonKmFirstTrip = payloadCapacity * loadFactor * forwardLoadedDistance;
+      const tonKmSecondTrip = payloadCapacity * loadFactor * returnLoadedDistance;
+      const tonKmPerCycle = tonKmFirstTrip + tonKmSecondTrip;
 
-      const totalTonnage = tonnagePerTrip * trips;
-      const tonKilometres = tonKmPerTrip * trips;
-      const totalDistance = zeroRun1 + routeLength * trips + zeroRun2 - emptyDistance;
-      const actualShiftTime = safeDivide(totalDistance, technicalSpeed) + serviceTime * trips;
-      const betaTrip = safeDivide(loadedDistance, routeLength);
-      const betaDay = safeDivide(loadedDistance * trips, totalDistance);
+      const theoreticalCycles = safeDivide(shiftDuration, cycleTime);
+      const fullCycles = Math.floor(theoreticalCycles);
+      const deltaTime = shiftDuration - fullCycles * cycleTime;
+      const requiredTimeForExtraTrip = firstTripTime;
+      const canPerformExtraTrip = deltaTime >= requiredTimeForExtraTrip && technicalSpeed > 0;
+
+      const totalCycles = fullCycles + (canPerformExtraTrip ? 0.5 : 0);
+      const tripsPerCycle = 2;
+      const baseTrips = fullCycles * tripsPerCycle;
+      const totalTrips = baseTrips + (canPerformExtraTrip ? 1 : 0);
+      const tripsForward = fullCycles + (canPerformExtraTrip ? 1 : 0);
+      const tripsReturn = fullCycles;
+
+      const totalTonnage = tonnagePerTrip * totalTrips;
+      const tonKilometres = payloadCapacity * loadFactor * (
+        tripsForward * forwardLoadedDistance + tripsReturn * returnLoadedDistance
+      );
+
+      const totalDistance = Number.isInteger(totalCycles)
+        ? zeroRun1 + routeLength * totalCycles + zeroRun3 - emptyReturnDistance
+        : zeroRun1 + routeLength * totalCycles + zeroRun2;
+
+      const actualShiftTime = safeDivide(totalDistance, technicalSpeed) + serviceTime * totalTrips;
+
+      const betaFirstTrip = forwardLoadedDistance ? 1 : 0;
+      const betaSecondTrip = safeDivide(returnLoadedDistance, returnLoadedDistance + emptyReturnDistance);
+      const betaDay = safeDivide(
+        forwardLoadedDistance * tripsForward + returnLoadedDistance * tripsReturn,
+        totalDistance,
+      );
+      const betaCycle = safeDivide(
+        forwardLoadedDistance + returnLoadedDistance,
+        routeLength,
+      );
 
       return {
-        'Длина маршрута (lₘ = l_g + lₓ), км': formatNumber(routeLength),
-        'Время ездки, оборота (tₑ,ₒ), ч': formatNumber(cycleTime),
-        'Выработка за ездку (Qₑ,ₒ), т': formatNumber(tonnagePerTrip),
-        'Тонно-километры за ездку (Pₑ,ₒ), ткм': formatNumber(tonKmPerTrip),
-        'Целое число ездок [Tₙ / tₑ,ₒ], шт': baseTrips,
-        'Остаток времени после целых ездок (ΔTₙ), ч': formatNumber(deltaTime),
-        'Необходимое время для дополнительной ездки (tₑₙ), ч': formatNumber(requiredTimeForExtra),
+        'Длина маршрута (lₘ = l_g₁ + l_g₂ + lₓ₂), км': formatNumber(routeLength),
+        'Время первой ездки (tₑ₁), ч': formatNumber(firstTripTime),
+        'Время второй ездки (tₑ₂), ч': formatNumber(secondTripTime),
+        'Время оборота (tₒ), ч': formatNumber(cycleTime),
+        'Выработка за ездку (Qₑ), т': formatNumber(tonnagePerTrip),
+        'Выработка за оборот (Qₒ), т': formatNumber(tonnagePerCycle),
+        'Тонно-километры первой ездки (Pₑ₁), ткм': formatNumber(tonKmFirstTrip),
+        'Тонно-километры второй ездки (Pₑ₂), ткм': formatNumber(tonKmSecondTrip),
+        'Тонно-километры за оборот (Pₒ), ткм': formatNumber(tonKmPerCycle),
+        'Теоретическое число оборотов (Zₒ = Tₙ / tₒ)': formatNumber(theoreticalCycles, 2),
+        'Целое число оборотов [Tₙ / tₒ], шт': fullCycles,
+        'Число ездок за время в наряде без учёта проверки (Zₑ), шт': baseTrips,
+        'Остаток времени после целых оборотов (ΔTₙ), ч': formatNumber(deltaTime),
+        'Необходимое время для дополнительной ездки (tₑₙ), ч': formatNumber(requiredTimeForExtraTrip),
         'Возможность дополнительной ездки': canPerformExtraTrip ? 'выполнима' : 'не выполнима',
-        'Число ездок с учётом проверки (Zₑ,ₒ), шт': trips,
+        'Число ездок с учётом проверки (Zₑ факт), шт': totalTrips,
+        'Число ездок на l_g₁ (Zₑ₁), шт': tripsForward,
+        'Число ездок на l_g₂ (Zₑ₂), шт': tripsReturn,
         'Выработка в тоннах за смену (Qₙ), т': formatNumber(totalTonnage),
         'Тонно-километры за смену (Pₙ), ткм': formatNumber(tonKilometres),
         'Общий пробег за смену (Lₒбщ), км': formatNumber(totalDistance),
         'Фактическое время в наряде (Tₙ факт), ч': formatNumber(actualShiftTime),
-        'Коэффициент использования пробега за ездку (βₑ,ₒ)': formatNumber(betaTrip, 3),
+        'Коэффициент использования пробега первой ездки (βₑ₁)': formatNumber(betaFirstTrip, 3),
+        'Коэффициент использования пробега второй ездки (βₑ₂)': formatNumber(betaSecondTrip, 3),
         'Коэффициент использования пробега за день (βд)': formatNumber(betaDay, 3),
+        'Коэффициент использования пробега за оборот (βₒ)': formatNumber(betaCycle, 3),
       };
     },
   },
