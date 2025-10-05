@@ -1,4 +1,4 @@
-import { methods } from './methods/index.js';
+import { methods } from './methods.js';
 
 const app = document.getElementById('app');
 
