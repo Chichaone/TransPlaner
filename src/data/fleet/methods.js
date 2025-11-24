@@ -171,7 +171,7 @@ const fleetMethods = [
 
       const tonneKmTrip1 = payloadPerTrip * loadedDistance1; // Pе₁
       const tonneKmTrip2 = payloadPerTrip * loadedDistance2; // Pе₂
-      const tonneKmPerTurn = tonneKmTrip1 + tonneKmTrip2 + payloadPerTrip * loadedDistance1 + payloadPerTrip * loadedDistance2; // Pо
+      const tonneKmPerTurn = tonneKmTrip1 + tonneKmTrip2; // Pо = qγ·lг₁ + qγ·lг₂
 
       const throughputSingleRaw = operationTime > 0 ? safeDivide(turnaroundTime, operationTime) : 0; // Aэ′ вариант 1
       const throughputSingle = Math.max(Math.floor(throughputSingleRaw), 1);
