@@ -244,7 +244,34 @@ const renderResults = () => {
 
     const valueCell = document.createElement('td');
 
-    if (value && typeof value === 'object' && value.type === 'table') {
+    if (Array.isArray(value)) {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const headers = value.length && typeof value[0] === 'object' ? Object.keys(value[0]) : ['Значение'];
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      value.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        if (item && typeof item === 'object') {
+          headers.forEach((key) => {
+            nestedRow.appendChild(createElement('td', null, item[key] !== undefined ? String(item[key]) : ''));
+          });
+        } else {
+          nestedRow.appendChild(createElement('td', null, String(item)));
+        }
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else if (value && typeof value === 'object' && value.type === 'table') {
       const nestedTable = document.createElement('table');
       nestedTable.className = 'results-subtable';
 
