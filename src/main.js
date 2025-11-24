@@ -1,4 +1,5 @@
 import { methods } from './data/methods.js';
+import { isolatedPlanning } from './data/planning/isolated.js';
 
 const app = document.getElementById('app');
 
@@ -6,6 +7,7 @@ let currentTab = 'calculators';
 let currentMethod = methods[0];
 let lastResults = null;
 let isFleetMode = false;
+let currentPlanMode = 'isolation';
 
 const shipments = [];
 const planAssignments = {};
@@ -345,6 +347,29 @@ const renderPlanGrid = () => {
   return table;
 };
 
+const renderSimpleTable = (headers, rows) => {
+  const table = createElement('table', 'shipments-table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach((title) => {
+    headerRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    headers.forEach((key) => {
+      const value = row[key];
+      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  return table;
+};
+
 const renderPlanAssignments = () => {
   const table = createElement('table', 'shipments-table');
 
@@ -415,6 +440,113 @@ const renderPlanAssignments = () => {
   return table;
 };
 
+const renderPlanModeNav = () => {
+  const nav = createElement('div', 'plan-mode-nav');
+  const modes = [
+    { id: 'isolation', label: 'Изолированное планирование' },
+    { id: 'requests', label: 'Журнал заявок' },
+  ];
+
+  modes.forEach((mode) => {
+    const button = createElement('button', currentPlanMode === mode.id ? 'active' : null, mode.label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      if (currentPlanMode !== mode.id) {
+        currentPlanMode = mode.id;
+        render();
+      }
+    });
+    nav.appendChild(button);
+  });
+
+  return nav;
+};
+
+const renderIsolationPlanning = () => {
+  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan();
+  const section = createElement('div', 'plan-isolation');
+
+  const intro = createElement(
+    'p',
+    'plan-hint',
+    'Изолированный способ расчёта использует маятниковый маршрут с обратным холостым пробегом для каждой заявки и подбирает количество автомобилей так, чтобы перекрыть плановый объём.'
+  );
+  section.appendChild(intro);
+
+  const configCard = createElement('div', 'plan-card');
+  configCard.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
+  const configList = createElement('ul', 'plan-config');
+  [
+    `Грузоподъёмность: ${vehicleConfig.payload} т`,
+    `Коэффициент использования грузоподъёмности: ${vehicleConfig.loadFactor}`,
+    `Время на погрузку-выгрузку: ${vehicleConfig.serviceTime} ч (0,1 ч/т)`,
+    `Среднетехническая скорость: ${vehicleConfig.technicalSpeed} км/ч`,
+  ].forEach((item) => {
+    configList.appendChild(createElement('li', null, item));
+  });
+  configCard.appendChild(configList);
+  section.appendChild(configCard);
+
+  const requestsCard = createElement('div', 'plan-card');
+  requestsCard.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
+  const requestRows = requests.map((item) => ({
+    Маршрут: item.route,
+    ГО: item.shipper,
+    ГП: item.consignee,
+    'Объём, т': item.volume,
+    'Время работы, ч': item.workTime,
+  }));
+  requestsCard.appendChild(
+    renderSimpleTable(['Маршрут', 'ГО', 'ГП', 'Объём, т', 'Время работы, ч'], requestRows),
+  );
+  section.appendChild(requestsCard);
+
+  const routesCard = createElement('div', 'plan-card');
+  routesCard.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
+  const distanceRows = Object.entries(routeDistances).map(([route, d]) => ({
+    Маршрут: route,
+    'lг, км': d.loadedDistance,
+    'lх, км': d.emptyDistance,
+    'lн1, км': d.zeroRun1,
+    'lн2, км': d.zeroRun2,
+  }));
+  routesCard.appendChild(
+    renderSimpleTable(['Маршрут', 'lг, км', 'lх, км', 'lн1, км', 'lн2, км'], distanceRows),
+  );
+  section.appendChild(routesCard);
+
+  const resultsCard = createElement('div', 'plan-card');
+  resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));
+
+  const resultRows = planRows.map((row) => ({
+    Маршрут: row.route,
+    'Qпл, т': row.plannedTonnageLabel,
+    'Рд, т·км': row.plannedTonKmLabel,
+    'Lобщ, км': row.plannedDistanceLabel,
+    'ΣTн факт, ч': row.plannedDutyTimeLabel,
+    'Апл, ед.': row.vehiclesNeeded,
+  }));
+
+  const totalRow = {
+    Маршрут: 'Итого',
+    'Qпл, т': totals.plannedTonnageLabel,
+    'Рд, т·км': totals.plannedTonKmLabel,
+    'Lобщ, км': totals.plannedDistanceLabel,
+    'ΣTн факт, ч': totals.plannedDutyTimeLabel,
+    'Апл, ед.': totals.vehiclesNeeded,
+  };
+
+  resultsCard.appendChild(
+    renderSimpleTable(
+      ['Маршрут', 'Qпл, т', 'Рд, т·км', 'Lобщ, км', 'ΣTн факт, ч', 'Апл, ед.'],
+      [...resultRows, totalRow],
+    ),
+  );
+
+  section.appendChild(resultsCard);
+  return section;
+};
+
 const renderShipmentForm = () => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Добавление заявки'));
@@ -482,24 +614,30 @@ const renderPlanView = () => {
   const heading = createElement('h2', null, 'Разработка плана перевозок');
   container.appendChild(heading);
 
-  const gridCard = createElement('div', 'plan-card');
-  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-  gridCard.appendChild(renderPlanGrid());
-  container.appendChild(gridCard);
+  container.appendChild(renderPlanModeNav());
 
-  container.appendChild(renderShipmentForm());
+  if (currentPlanMode === 'isolation') {
+    container.appendChild(renderIsolationPlanning());
+  } else {
+    const gridCard = createElement('div', 'plan-card');
+    gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
+    gridCard.appendChild(renderPlanGrid());
+    container.appendChild(gridCard);
 
-  const tableCard = createElement('div', 'plan-card');
-  tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
-  tableCard.appendChild(renderPlanAssignments());
-  container.appendChild(tableCard);
+    container.appendChild(renderShipmentForm());
 
-  const hint = createElement(
-    'p',
-    'plan-hint',
-    'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
-  );
-  container.appendChild(hint);
+    const tableCard = createElement('div', 'plan-card');
+    tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
+    tableCard.appendChild(renderPlanAssignments());
+    container.appendChild(tableCard);
+
+    const hint = createElement(
+      'p',
+      'plan-hint',
+      'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
+    );
+    container.appendChild(hint);
+  }
 
   return container;
 };

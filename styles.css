@@ -432,6 +432,41 @@ body.dark .tab-nav button.active {
   gap: 1.5rem;
 }
 
+.plan-mode-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.plan-mode-nav button {
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 0.45rem 1rem;
+  background: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.8);
+}
+
+.plan-mode-nav button.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.2);
+}
+
+body.dark .plan-mode-nav button {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+body.dark .plan-mode-nav button.active {
+  background: var(--primary-dark);
+  border-color: rgba(148, 163, 184, 0.5);
+  color: #fff;
+}
+
 .plan-card {
   background: rgba(15, 23, 42, 0.05);
   border-radius: 16px;
@@ -447,6 +482,23 @@ body.dark .plan-card {
 .plan-card h3 {
   margin-top: 0;
   margin-bottom: 1rem;
+}
+
+.plan-isolation .plan-card + .plan-card {
+  margin-top: 0.5rem;
+}
+
+.plan-config {
+  list-style: disc inside;
+  display: grid;
+  gap: 0.35rem;
+  color: rgba(15, 23, 42, 0.8);
+  padding-left: 1rem;
+  margin: 0;
+}
+
+body.dark .plan-config {
+  color: rgba(226, 232, 240, 0.9);
 }
 
 .shipment-form {
