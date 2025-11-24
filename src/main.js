@@ -447,6 +447,29 @@ const renderSimpleTable = (headers, rows) => {
   return table;
 };
 
+const renderSimpleTable = (headers, rows) => {
+  const table = createElement('table', 'shipments-table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach((title) => {
+    headerRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    headers.forEach((key) => {
+      const value = row[key];
+      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  return table;
+};
+
 const renderPlanAssignments = () => {
   const table = createElement('table', 'shipments-table');
 
