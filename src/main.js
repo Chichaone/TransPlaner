@@ -43,6 +43,25 @@ const createElement = (tag, className, textContent) => {
 
 const cloneValue = (value) => JSON.parse(JSON.stringify(value));
 
+const syncRouteDistancesToRequests = (routeDistances = {}, requests = []) => {
+  const normalized = { ...routeDistances };
+  const usedRoutes = new Set(requests.map((request) => request.route));
+
+  Object.keys(normalized).forEach((routeKey) => {
+    if (!usedRoutes.has(routeKey)) {
+      delete normalized[routeKey];
+    }
+  });
+
+  requests.forEach((request) => {
+    if (!normalized[request.route]) {
+      normalized[request.route] = { loadedDistance: 0, emptyDistance: 0, zeroRun1: 0, zeroRun2: 0 };
+    }
+  });
+
+  return normalized;
+};
+
 const renderTabNavigation = () => {
   const nav = createElement('div', 'tab-nav');
 
@@ -611,9 +630,27 @@ const renderRequestsEditor = (draft, setDraft) => {
     routeInput.type = 'text';
     routeInput.value = item.route;
     routeInput.addEventListener('input', () => {
-      const next = draft.requests.slice();
-      next[index] = { ...next[index], route: routeInput.value };
-      setDraft({ ...draft, requests: next });
+      const nextRequests = draft.requests.slice();
+      const previousRoute = nextRequests[index]?.route;
+      const nextRoute = routeInput.value.trim();
+
+      nextRequests[index] = { ...nextRequests[index], route: nextRoute };
+
+      let nextRouteDistances = { ...draft.routeDistances };
+      const previousDistances = previousRoute ? draft.routeDistances[previousRoute] : null;
+
+      if (previousRoute && previousRoute !== nextRoute && previousDistances) {
+        const stillUsed = nextRequests.some((req, reqIndex) => reqIndex !== index && req.route === previousRoute);
+        if (!stillUsed) {
+          nextRouteDistances[nextRoute || previousRoute] = previousDistances;
+          delete nextRouteDistances[previousRoute];
+        } else if (nextRoute && !nextRouteDistances[nextRoute]) {
+          nextRouteDistances[nextRoute] = previousDistances;
+        }
+      }
+
+      nextRouteDistances = syncRouteDistancesToRequests(nextRouteDistances, nextRequests);
+      setDraft({ ...draft, requests: nextRequests, routeDistances: nextRouteDistances });
     });
     row.appendChild(createElement('td', null)).appendChild(routeInput);
 
