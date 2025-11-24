@@ -1,10 +1,11 @@
-import { methods } from './methods/index.js';
+import { methods } from './data/methods.js';
 
 const app = document.getElementById('app');
 
 let currentTab = 'calculators';
 let currentMethod = methods[0];
 let lastResults = null;
+let isFleetMode = false;
 
 const shipments = [];
 const planAssignments = {};
@@ -59,10 +60,60 @@ const renderTabNavigation = () => {
   return nav;
 };
 
-const renderMethodSelector = () => {
+const renderModeToggle = () => {
+  const wrapper = createElement('div', 'mode-toggle');
+  const label = createElement('label', 'mode-toggle__label');
+  label.htmlFor = 'fleet-mode-toggle';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = isFleetMode;
+  checkbox.id = 'fleet-mode-toggle';
+  checkbox.className = 'mode-toggle__input';
+  checkbox.addEventListener('change', () => {
+    isFleetMode = checkbox.checked;
+    lastResults = null;
+    render();
+  });
+
+  const switchTrack = createElement('span', 'mode-toggle__switch');
+  switchTrack.appendChild(createElement('span', 'mode-toggle__handle'));
+  const title = createElement('span', 'mode-toggle__title', 'Группа авто');
+
+  label.append(checkbox, switchTrack, title);
+
+  const preview = createElement('div', 'mode-toggle__preview');
+  const oppositeMode = isFleetMode ? 'single' : 'fleet';
+  const oppositeMethods = methods.filter((method) => method.mode === oppositeMode);
+  const previewTitle = createElement(
+    'div',
+    'mode-toggle__preview-title',
+    oppositeMode === 'fleet' ? 'Предпоказ: группы авто' : 'Предпоказ: 1 авто'
+  );
+  const previewList = createElement('div', 'mode-toggle__preview-list');
+  const previewItems = oppositeMethods.slice(0, 3);
+
+  previewItems.forEach((method) => {
+    previewList.appendChild(createElement('span', 'mode-toggle__preview-pill', method.name));
+  });
+
+  if (oppositeMethods.length > previewItems.length) {
+    previewList.appendChild(
+      createElement('span', 'mode-toggle__preview-pill mode-toggle__preview-pill--more', `+${
+        oppositeMethods.length - previewItems.length
+      }`)
+    );
+  }
+
+  preview.append(previewTitle, previewList);
+  wrapper.append(label, preview);
+  return wrapper;
+};
+
+const renderMethodSelector = (availableMethods) => {
   const container = createElement('div', 'method-selector');
 
-  methods.forEach((method) => {
+  availableMethods.forEach((method) => {
     const button = createElement('button');
     button.type = 'button';
     button.textContent = method.name;
@@ -72,6 +123,10 @@ const renderMethodSelector = () => {
       lastResults = null;
       render();
     });
+
+    const badge = createElement('span', `method-badge method-badge--${method.mode}`);
+    badge.title = method.mode === 'fleet' ? 'Методика для группы автомобилей' : 'Методика для одного авто';
+    button.appendChild(badge);
     container.appendChild(button);
   });
 
@@ -390,7 +445,17 @@ const render = () => {
 
   if (currentTab === 'calculators') {
     const calculatorsSection = createElement('section', 'calculators');
-    calculatorsSection.appendChild(renderMethodSelector());
+    const availableMethods = methods.filter(
+      (method) => method.mode === (isFleetMode ? 'fleet' : 'single'),
+    );
+
+    if (!availableMethods.some((method) => method.id === currentMethod.id)) {
+      currentMethod = availableMethods[0];
+      lastResults = null;
+    }
+
+    calculatorsSection.appendChild(renderModeToggle());
+    calculatorsSection.appendChild(renderMethodSelector(availableMethods));
     calculatorsSection.appendChild(renderDescription());
     calculatorsSection.appendChild(renderForm());
     app.appendChild(calculatorsSection);
