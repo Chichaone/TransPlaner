@@ -1,10 +1,16 @@
-import { methods } from './methods/index.js';
+import { methods } from './data/methods.js';
+import { isolatedPlanning } from './data/planning/isolated.js';
+import { formatNumber } from './utils.js';
 
 const app = document.getElementById('app');
 
 let currentTab = 'calculators';
 let currentMethod = methods[0];
 let lastResults = null;
+let isFleetMode = false;
+let currentPlanMode = 'isolation';
+let isolationInputs = isolatedPlanning.getDefaultInputs();
+let isolationDraft = isolatedPlanning.getDefaultInputs();
 
 const shipments = [];
 const planAssignments = {};
@@ -31,6 +37,8 @@ const createElement = (tag, className, textContent) => {
   }
   return element;
 };
+
+const cloneValue = (value) => JSON.parse(JSON.stringify(value));
 
 const renderTabNavigation = () => {
   const nav = createElement('div', 'tab-nav');
@@ -59,10 +67,64 @@ const renderTabNavigation = () => {
   return nav;
 };
 
-const renderMethodSelector = () => {
+const renderModeToggle = () => {
+  const wrapper = createElement('div', 'mode-toggle');
+  const label = createElement('label', 'mode-toggle__label');
+  label.htmlFor = 'fleet-mode-toggle';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = isFleetMode;
+  checkbox.id = 'fleet-mode-toggle';
+  checkbox.className = 'mode-toggle__input';
+  checkbox.addEventListener('change', () => {
+    isFleetMode = checkbox.checked;
+    const nextMethods = methods.filter((method) => method.mode === (isFleetMode ? 'fleet' : 'single'));
+    if (nextMethods.length) {
+      currentMethod = nextMethods[0];
+    }
+    lastResults = null;
+    render();
+  });
+
+  const switchTrack = createElement('span', 'mode-toggle__switch');
+  switchTrack.appendChild(createElement('span', 'mode-toggle__handle'));
+  const title = createElement('span', 'mode-toggle__title', 'Группа авто');
+
+  label.append(checkbox, switchTrack, title);
+
+  const preview = createElement('div', 'mode-toggle__preview');
+  const oppositeMode = isFleetMode ? 'single' : 'fleet';
+  const oppositeMethods = methods.filter((method) => method.mode === oppositeMode);
+  const previewTitle = createElement(
+    'div',
+    'mode-toggle__preview-title',
+    oppositeMode === 'fleet' ? 'Предпоказ: группы авто' : 'Предпоказ: 1 авто'
+  );
+  const previewList = createElement('div', 'mode-toggle__preview-list');
+  const previewItems = oppositeMethods.slice(0, 3);
+
+  previewItems.forEach((method) => {
+    previewList.appendChild(createElement('span', 'mode-toggle__preview-pill', method.name));
+  });
+
+  if (oppositeMethods.length > previewItems.length) {
+    previewList.appendChild(
+      createElement('span', 'mode-toggle__preview-pill mode-toggle__preview-pill--more', `+${
+        oppositeMethods.length - previewItems.length
+      }`)
+    );
+  }
+
+  preview.append(previewTitle, previewList);
+  wrapper.append(label, preview);
+  return wrapper;
+};
+
+const renderMethodSelector = (availableMethods) => {
   const container = createElement('div', 'method-selector');
 
-  methods.forEach((method) => {
+  availableMethods.forEach((method) => {
     const button = createElement('button');
     button.type = 'button';
     button.textContent = method.name;
@@ -72,6 +134,10 @@ const renderMethodSelector = () => {
       lastResults = null;
       render();
     });
+
+    const badge = createElement('span', `method-badge method-badge--${method.mode}`);
+    badge.title = method.mode === 'fleet' ? 'Методика для группы автомобилей' : 'Методика для одного авто';
+    button.appendChild(badge);
     container.appendChild(button);
   });
 
@@ -182,8 +248,69 @@ const renderResults = () => {
     const titleCell = document.createElement('th');
     titleCell.scope = 'row';
     titleCell.textContent = name;
+
     const valueCell = document.createElement('td');
-    valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+
+    if (Array.isArray(value)) {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const headers = value.length && typeof value[0] === 'object' ? Object.keys(value[0]) : ['Значение'];
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      value.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        if (item && typeof item === 'object') {
+          headers.forEach((key) => {
+            nestedRow.appendChild(createElement('td', null, item[key] !== undefined ? String(item[key]) : ''));
+          });
+        } else {
+          nestedRow.appendChild(createElement('td', null, String(item)));
+        }
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else if (value && typeof value === 'object' && value.type === 'table') {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      value.headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      const columnKeys = value.columns || null;
+      const fallbackKeys = ['index', 'trips', 'tonnage', 'tonneKm', 'totalDistance', 'actualDutyTime'];
+
+      value.rows.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        const keysToUse = columnKeys && columnKeys.length ? columnKeys : fallbackKeys;
+
+        keysToUse.forEach((key) => {
+          const cellValue = item[key];
+          nestedRow.appendChild(createElement('td', null, cellValue !== undefined ? String(cellValue) : ''));
+        });
+
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else {
+      valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+    }
+
     row.append(titleCell, valueCell);
     tbody.appendChild(row);
   });
@@ -221,6 +348,29 @@ const renderPlanGrid = () => {
     tbody.appendChild(row);
   });
 
+  table.appendChild(tbody);
+  return table;
+};
+
+const renderSimpleTable = (headers, rows) => {
+  const table = createElement('table', 'shipments-table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach((title) => {
+    headerRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    headers.forEach((key) => {
+      const value = row[key];
+      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
+    });
+    tbody.appendChild(tr);
+  });
   table.appendChild(tbody);
   return table;
 };
@@ -295,6 +445,322 @@ const renderPlanAssignments = () => {
   return table;
 };
 
+const renderPlanModeNav = () => {
+  const nav = createElement('div', 'plan-mode-nav');
+  const modes = [
+    { id: 'isolation', label: 'Изолированное планирование' },
+    { id: 'requests', label: 'Журнал заявок' },
+  ];
+
+  modes.forEach((mode) => {
+    const button = createElement('button', currentPlanMode === mode.id ? 'active' : null, mode.label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      if (currentPlanMode !== mode.id) {
+        currentPlanMode = mode.id;
+        render();
+      }
+    });
+    nav.appendChild(button);
+  });
+
+  return nav;
+};
+
+const bindNumberChange = (input, onChange) => {
+  input.addEventListener('input', () => {
+    const value = Number(input.value);
+    onChange(Number.isFinite(value) ? value : 0);
+  });
+};
+
+const renderVehicleConfigEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
+
+  const form = document.createElement('form');
+  form.className = 'plan-config-grid';
+
+  const fields = [
+    { name: 'payload', label: 'Грузоподъёмность, т', step: 'any' },
+    { name: 'loadFactor', label: 'Коэффициент использования грузоподъёмности', step: 'any' },
+    { name: 'serviceTimePerTon', label: 'Время на погрузку-выгрузку, ч/т', step: 'any' },
+    { name: 'technicalSpeed', label: 'Среднетехническая скорость, км/ч', step: 'any' },
+  ];
+
+  fields.forEach((fieldConfig) => {
+    const field = createElement('label', 'plan-field');
+    field.textContent = fieldConfig.label;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = fieldConfig.step;
+    input.value = isolationDraft.vehicleConfig[fieldConfig.name];
+    bindNumberChange(input, (value) => {
+      isolationDraft = {
+        ...isolationDraft,
+        vehicleConfig: { ...isolationDraft.vehicleConfig, [fieldConfig.name]: value },
+      };
+      render();
+    });
+    field.appendChild(input);
+    form.appendChild(field);
+  });
+
+  const derived = createElement(
+    'p',
+    'plan-hint',
+    `Время на погрузку-выгрузку за ездку: ${formatNumber(
+      isolationDraft.vehicleConfig.payload * isolationDraft.vehicleConfig.serviceTimePerTon,
+    )} ч`,
+  );
+  card.append(form, derived);
+  return card;
+};
+
+const renderRequestsEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'ГО', 'ГП', 'Объём, т', 'Время работы, ч'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  isolationDraft.requests.forEach((item, index) => {
+    const row = document.createElement('tr');
+
+    const routeInput = document.createElement('input');
+    routeInput.type = 'text';
+    routeInput.value = item.route;
+    routeInput.addEventListener('input', () => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], route: routeInput.value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(routeInput);
+
+    const shipperInput = document.createElement('input');
+    shipperInput.type = 'text';
+    shipperInput.value = item.shipper;
+    shipperInput.addEventListener('input', () => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], shipper: shipperInput.value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(shipperInput);
+
+    const consigneeInput = document.createElement('input');
+    consigneeInput.type = 'text';
+    consigneeInput.value = item.consignee;
+    consigneeInput.addEventListener('input', () => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], consignee: consigneeInput.value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(consigneeInput);
+
+    const volumeInput = document.createElement('input');
+    volumeInput.type = 'number';
+    volumeInput.step = 'any';
+    volumeInput.value = item.volume;
+    bindNumberChange(volumeInput, (value) => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], volume: value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(volumeInput);
+
+    const timeInput = document.createElement('input');
+    timeInput.type = 'number';
+    timeInput.step = 'any';
+    timeInput.value = item.workTime;
+    bindNumberChange(timeInput, (value) => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], workTime: value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(timeInput);
+
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
+const renderRouteDistancesEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'lг, км', 'lх, км', 'lн1, км', 'lн2, км'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  Object.entries(isolationDraft.routeDistances).forEach(([route, distances]) => {
+    const row = document.createElement('tr');
+    row.appendChild(createElement('td', null, route));
+
+    ['loadedDistance', 'emptyDistance', 'zeroRun1', 'zeroRun2'].forEach((key) => {
+      const cell = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = 'any';
+      input.value = distances[key];
+      bindNumberChange(input, (value) => {
+        isolationDraft = {
+          ...isolationDraft,
+          routeDistances: {
+            ...isolationDraft.routeDistances,
+            [route]: { ...isolationDraft.routeDistances[route], [key]: value },
+          },
+        };
+        render();
+      });
+      cell.appendChild(input);
+      row.appendChild(cell);
+    });
+
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
+const renderPlanVolumesEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Плановые объёмы (табл. 19, Qпл)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'Qпл, т'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  isolationDraft.requests.forEach((request, index) => {
+    const row = document.createElement('tr');
+    row.appendChild(createElement('td', null, request.route));
+
+    const volumeInput = document.createElement('input');
+    volumeInput.type = 'number';
+    volumeInput.step = 'any';
+    volumeInput.value = request.volume;
+    bindNumberChange(volumeInput, (value) => {
+      const next = isolationDraft.requests.slice();
+      next[index] = { ...next[index], volume: value };
+      isolationDraft = { ...isolationDraft, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(volumeInput);
+
+    tbody.appendChild(row);
+  });
+
+  const total = isolationDraft.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
+  const totalRow = document.createElement('tr');
+  totalRow.appendChild(createElement('td', 'table-total', 'Итого'));
+  totalRow.appendChild(createElement('td', 'table-total', formatNumber(total)));
+  tbody.appendChild(totalRow);
+
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
+const renderPlanRecalculate = () => {
+  const card = createElement('div', 'plan-card plan-actions-card');
+  card.appendChild(createElement('h3', null, 'Пересчёт плана'));
+  card.appendChild(
+    createElement(
+      'p',
+      'plan-hint',
+      'После изменения исходных данных нажмите кнопку, чтобы обновить расчёт таблицы 19.',
+    ),
+  );
+
+  const button = createElement('button', 'calculate plan-recalculate', 'Рассчитать план');
+  button.type = 'button';
+  button.addEventListener('click', () => {
+    isolationInputs = cloneValue(isolationDraft);
+    render();
+  });
+
+  card.appendChild(button);
+  return card;
+};
+
+const renderIsolationPlanning = () => {
+  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan(isolationInputs);
+  const section = createElement('div', 'plan-isolation');
+
+  const intro = createElement(
+    'p',
+    'plan-hint',
+    'Изолированный способ расчёта использует маятниковый маршрут с обратным холостым пробегом для каждой заявки и подбирает количество автомобилей так, чтобы перекрыть плановый объём.',
+  );
+  section.appendChild(intro);
+
+  section.appendChild(renderVehicleConfigEditor());
+  section.appendChild(renderRequestsEditor());
+  section.appendChild(renderRouteDistancesEditor());
+  section.appendChild(renderPlanVolumesEditor());
+  section.appendChild(renderPlanRecalculate());
+
+  const resultsCard = createElement('div', 'plan-card');
+  resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));
+
+  const resultRows = planRows.map((row) => ({
+    Маршрут: row.route,
+    'Qпл, т': row.plannedTonnageLabel,
+    'Рд, т·км': row.plannedTonKmLabel,
+    'Lобщ, км': row.plannedDistanceLabel,
+    'ΣTн факт, ч': row.plannedDutyTimeLabel,
+    'Апл, ед.': row.vehiclesNeeded,
+  }));
+
+  const totalRow = {
+    Маршрут: 'Итого',
+    'Qпл, т': totals.plannedTonnageLabel,
+    'Рд, т·км': totals.plannedTonKmLabel,
+    'Lобщ, км': totals.plannedDistanceLabel,
+    'ΣTн факт, ч': totals.plannedDutyTimeLabel,
+    'Апл, ед.': totals.vehiclesNeeded,
+  };
+
+  resultsCard.appendChild(
+    renderSimpleTable(
+      ['Маршрут', 'Qпл, т', 'Рд, т·км', 'Lобщ, км', 'ΣTн факт, ч', 'Апл, ед.'],
+      [...resultRows, totalRow],
+    ),
+  );
+
+  section.appendChild(resultsCard);
+  return section;
+};
+
 const renderShipmentForm = () => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Добавление заявки'));
@@ -362,24 +828,30 @@ const renderPlanView = () => {
   const heading = createElement('h2', null, 'Разработка плана перевозок');
   container.appendChild(heading);
 
-  const gridCard = createElement('div', 'plan-card');
-  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-  gridCard.appendChild(renderPlanGrid());
-  container.appendChild(gridCard);
+  container.appendChild(renderPlanModeNav());
 
-  container.appendChild(renderShipmentForm());
+  if (currentPlanMode === 'isolation') {
+    container.appendChild(renderIsolationPlanning());
+  } else {
+    const gridCard = createElement('div', 'plan-card');
+    gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
+    gridCard.appendChild(renderPlanGrid());
+    container.appendChild(gridCard);
 
-  const tableCard = createElement('div', 'plan-card');
-  tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
-  tableCard.appendChild(renderPlanAssignments());
-  container.appendChild(tableCard);
+    container.appendChild(renderShipmentForm());
 
-  const hint = createElement(
-    'p',
-    'plan-hint',
-    'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
-  );
-  container.appendChild(hint);
+    const tableCard = createElement('div', 'plan-card');
+    tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
+    tableCard.appendChild(renderPlanAssignments());
+    container.appendChild(tableCard);
+
+    const hint = createElement(
+      'p',
+      'plan-hint',
+      'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
+    );
+    container.appendChild(hint);
+  }
 
   return container;
 };
@@ -390,7 +862,17 @@ const render = () => {
 
   if (currentTab === 'calculators') {
     const calculatorsSection = createElement('section', 'calculators');
-    calculatorsSection.appendChild(renderMethodSelector());
+    const availableMethods = methods.filter(
+      (method) => method.mode === (isFleetMode ? 'fleet' : 'single'),
+    );
+
+    if (!availableMethods.some((method) => method.id === currentMethod.id)) {
+      currentMethod = availableMethods[0];
+      lastResults = null;
+    }
+
+    calculatorsSection.appendChild(renderModeToggle());
+    calculatorsSection.appendChild(renderMethodSelector(availableMethods));
     calculatorsSection.appendChild(renderDescription());
     calculatorsSection.appendChild(renderForm());
     app.appendChild(calculatorsSection);
