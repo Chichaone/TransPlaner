@@ -346,6 +346,32 @@ body.dark .results-table {
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+.results-subtable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  background: transparent;
+}
+
+.results-subtable th,
+.results-subtable td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+}
+
+body.dark .results-subtable th,
+body.dark .results-subtable td {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.results-subtable thead th {
+  background: rgba(13, 110, 253, 0.1);
+  font-weight: 700;
+}
+
 .results-table th {
   background: rgba(13, 110, 253, 0.1);
   font-weight: 700;

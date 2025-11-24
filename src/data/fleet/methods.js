@@ -85,6 +85,15 @@ const fleetMethods = [
         perVehicle.push({ trips, tonnage, tonneKm, totalDistance, actualDutyTime });
       }
 
+      const perVehicleRows = perVehicle.map((item, index) => ({
+        index: index + 1,
+        trips: formatNumber(item.trips),
+        tonnage: formatNumber(item.tonnage),
+        tonneKm: formatNumber(item.tonneKm),
+        totalDistance: formatNumber(item.totalDistance),
+        actualDutyTime: formatNumber(item.actualDutyTime),
+      }));
+
       return {
         'Длина маршрута lм, км': formatNumber(routeLength),
         'Время ездки tₑₒ, ч': formatNumber(tripTime),
@@ -92,19 +101,18 @@ const fleetMethods = [
         'Принятое количество авто Аэ (округлено вниз), авто': throughput,
         'Выработка за ездку Qₑₒ, т': formatNumber(payloadPerTrip),
         'Тонно-километры за ездку Pₑₒ, ткм': formatNumber(tonneKmPerTrip),
-        'Число ездок Zₑᵢ (по автомобилям), шт': perVehicle.map(({ trips }) => formatNumber(trips)).join(', '),
-        'Выработка Qнᵢ (по автомобилям), т': perVehicle
-          .map(({ tonnage }) => formatNumber(tonnage))
-          .join(', '),
-        'Тонно-километры Pнᵢ (по автомобилям), ткм': perVehicle
-          .map(({ tonneKm }) => formatNumber(tonneKm))
-          .join(', '),
-        'Общий пробег Lобщᵢ (по автомобилям), км': perVehicle
-          .map(({ totalDistance }) => formatNumber(totalDistance))
-          .join(', '),
-        'Фактическое время в наряде Tнᵢ факт (по автомобилям), ч': perVehicle
-          .map(({ actualDutyTime }) => formatNumber(actualDutyTime))
-          .join(', '),
+        'Показатели по автомобилям': {
+          type: 'table',
+          headers: [
+            'i',
+            'Число ездок Zₑᵢ, шт',
+            'Выработка Qнᵢ, т',
+            'Тонно-километры Pнᵢ, ткм',
+            'Общий пробег Lобщᵢ, км',
+            'Фактическое время в наряде Tнᵢ факт, ч',
+          ],
+          rows: perVehicleRows,
+        },
         'Суммарная выработка Qн = Σ Qᵢ, т': formatNumber(tonnageSum),
         'Суммарные тонно-километры Pн = Σ Pᵢ, ткм': formatNumber(tonneKmSum),
         'Суммарный пробег Lобщ = Σ Lобщᵢ, км': formatNumber(distanceSum),

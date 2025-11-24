@@ -241,8 +241,38 @@ const renderResults = () => {
     const titleCell = document.createElement('th');
     titleCell.scope = 'row';
     titleCell.textContent = name;
+
     const valueCell = document.createElement('td');
-    valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+
+    if (value && typeof value === 'object' && value.type === 'table') {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      value.headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      value.rows.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        nestedRow.appendChild(createElement('td', null, String(item.index)));
+        nestedRow.appendChild(createElement('td', null, String(item.trips)));
+        nestedRow.appendChild(createElement('td', null, String(item.tonnage)));
+        nestedRow.appendChild(createElement('td', null, String(item.tonneKm)));
+        nestedRow.appendChild(createElement('td', null, String(item.totalDistance)));
+        nestedRow.appendChild(createElement('td', null, String(item.actualDutyTime)));
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else {
+      valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+    }
+
     row.append(titleCell, valueCell);
     tbody.appendChild(row);
   });
