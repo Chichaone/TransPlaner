@@ -65,7 +65,7 @@ const method6 = {
       'Время ездки (tₑₒ), ч': formatNumber(tripTime),
       'Выработка за ездку Qₑ, т': formatNumber(effectiveLoad),
       'Выработка в тонно-километрах за ездку (Pₑ), т·км': formatNumber(tonKm),
-      'Фактическое время в наряде (Tн факт), ч': formatNumber(tripTime),
+      'Tн факт (фактическое время в наряде), ч': formatNumber(tripTime),
       'Фактическая загрузка из пункта A (q_A = q_B + q_C + q_D), т': formatNumber(totalLoadedAtA),
       'Проверка баланса груза (q_A / q·γ)': formatNumber(safeDivide(totalLoadedAtA, effectiveLoad)),
     };
