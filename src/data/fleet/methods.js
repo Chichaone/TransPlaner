@@ -45,29 +45,75 @@ const fleetMethods = [
       const emptyDistance = toNumber(values.emptyDistance);
       const technicalSpeed = toNumber(values.technicalSpeed);
 
-      const routeLength = loadedDistance + emptyDistance;
+      const routeLength = loadedDistance + emptyDistance; // lм
       const tripDriveTime = safeDivide(routeLength, technicalSpeed);
-      const tripTime = tripDriveTime + loadUnloadTime;
-      const tripsRaw = safeDivide(dutyTime, tripTime);
-      const trips = Math.floor(tripsRaw);
+      const tripTime = tripDriveTime + loadUnloadTime; // tₑₒ
+      const payloadPerTrip = payload * loadFactor; // Qₑₒ
+      const tonneKmPerTrip = payloadPerTrip * loadedDistance; // Pₑₒ
 
-      const totalLoadUnloadTime = loadUnloadTime * trips;
-      const operationTime = loadUnloadTime > 0 ? loadUnloadTime / 2 : singleOperationTime;
-      const payloadPerTrip = payload * loadFactor;
-      const totalTonnagePerVehicle = payloadPerTrip * trips;
-      const totalTonneKmPerVehicle = loadedDistance * payloadPerTrip * trips;
-      const totalDistancePerVehicle = zeroRun1 + zeroRun2 + trips * (loadedDistance + emptyDistance);
+      const operationTime = singleOperationTime ||
+        (loadUnloadTime > 0 ? loadUnloadTime / 2 : 0); // Rₘₐₓ
+      const throughputRaw = operationTime > 0 ? safeDivide(tripTime, operationTime) : 0; // Аэ′
+      const throughput = Math.max(Math.floor(throughputRaw), 1); // Аэ
+
+      const perVehicle = [];
+      let tonnageSum = 0;
+      let tonneKmSum = 0;
+      let distanceSum = 0;
+      let actualDutySum = 0;
+
+      const essentialTripTime = safeDivide(loadedDistance, technicalSpeed) + loadUnloadTime; // tен
+
+      for (let i = 1; i <= throughput; i += 1) {
+        const availableTime = dutyTime - operationTime * (i - 1); // Tмᵢ
+        const boundedTime = Math.max(availableTime, 0);
+        const baseTripsRaw = safeDivide(boundedTime, tripTime); // Tмᵢ / tₑₒ
+        const baseTrips = Math.floor(baseTripsRaw); // [Tмᵢ / tₑₒ]
+        const remainderTime = boundedTime - baseTrips * tripTime; // ΔTнᵢ
+        const trips = remainderTime >= essentialTripTime ? Math.ceil(baseTripsRaw) : baseTrips; // Zₑᵢ
+
+        const tonnage = payloadPerTrip * trips; // Qнᵢ
+        const tonneKm = tonneKmPerTrip * trips; // Pнᵢ
+        const totalDistance = zeroRun1 + routeLength * trips + zeroRun2 - emptyDistance; // Lобщᵢ
+        const actualDutyTime = safeDivide(totalDistance, technicalSpeed) + trips * loadUnloadTime; // Tнi факт
+
+        tonnageSum += tonnage;
+        tonneKmSum += tonneKm;
+        distanceSum += totalDistance;
+        actualDutySum += actualDutyTime;
+
+        perVehicle.push({ trips, tonnage, tonneKm, totalDistance, actualDutyTime });
+      }
+
+      const tonnageAvg = safeDivide(tonnageSum, throughput); // Qн
+      const tonneKmAvg = safeDivide(tonneKmSum, throughput); // Pн
+      const distanceAvg = safeDivide(distanceSum, throughput); // Lобщ
+      const actualDutyAvg = safeDivide(actualDutySum, throughput); // Tн факт
 
       return {
-        'Длина маршрута Lм, км': formatNumber(routeLength),
-        'Время одной ездки tоб, ч': formatNumber(tripTime),
-        'Ездок в наряде Zei, шт': formatNumber(tripsRaw, 2),
-        'Целых ездок (округлённо), шт': trips,
-        'Суммарное время на погрузку/выгрузку Φ, ч': formatNumber(totalLoadUnloadTime),
-        'Время одной операции R, ч': formatNumber(operationTime),
-        'Масса груза за наряд одного авто Qн, т': formatNumber(totalTonnagePerVehicle),
-        'Тонно-километры за наряд одного авто Pн, ткм': formatNumber(totalTonneKmPerVehicle),
-        'Общий пробег одного авто, км': formatNumber(totalDistancePerVehicle),
+        'Длина маршрута lм, км': formatNumber(routeLength),
+        'Время ездки tₑₒ, ч': formatNumber(tripTime),
+        'Пропускная способность Аэ′ (неокруглённо), авто': formatNumber(throughputRaw, 2),
+        'Принятое количество авто Аэ (округлено вниз), авто': throughput,
+        'Выработка за ездку Qₑₒ, т': formatNumber(payloadPerTrip),
+        'Тонно-километры за ездку Pₑₒ, ткм': formatNumber(tonneKmPerTrip),
+        'Число ездок Zₑᵢ (по автомобилям), шт': perVehicle.map(({ trips }) => formatNumber(trips)).join(', '),
+        'Выработка Qнᵢ (по автомобилям), т': perVehicle
+          .map(({ tonnage }) => formatNumber(tonnage))
+          .join(', '),
+        'Тонно-километры Pнᵢ (по автомобилям), ткм': perVehicle
+          .map(({ tonneKm }) => formatNumber(tonneKm))
+          .join(', '),
+        'Общий пробег Lобщᵢ (по автомобилям), км': perVehicle
+          .map(({ totalDistance }) => formatNumber(totalDistance))
+          .join(', '),
+        'Фактическое время в наряде Tнᵢ факт (по автомобилям), ч': perVehicle
+          .map(({ actualDutyTime }) => formatNumber(actualDutyTime))
+          .join(', '),
+        'Суммарная выработка Qн = (1 / Аэ) Σ Qᵢ, т': formatNumber(tonnageAvg),
+        'Суммарные тонно-километры Pн = (1 / Аэ) Σ Pᵢ, ткм': formatNumber(tonneKmAvg),
+        'Суммарный пробег Lобщ = (1 / Аэ) Σ Lобщᵢ, км': formatNumber(distanceAvg),
+        'Суммарное фактическое время Tн факт = (1 / Аэ) Σ Tн фактᵢ, ч': formatNumber(actualDutyAvg),
       };
     },
   },
