@@ -541,7 +541,6 @@ const renderPlanModeNav = () => {
   const modes = [
     { id: 'isolation', label: 'Изолированное планирование' },
     { id: 'topographic', label: 'Топографическое планирование' },
-    { id: 'requests', label: 'Журнал заявок' },
   ];
 
   modes.forEach((mode) => {
@@ -1011,27 +1010,8 @@ const renderPlanView = () => {
 
   if (currentPlanMode === 'isolation') {
     container.appendChild(renderIsolationPlanning());
-  } else if (currentPlanMode === 'topographic') {
-    container.appendChild(renderTopographicPlanning());
   } else {
-    const gridCard = createElement('div', 'plan-card');
-    gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-    gridCard.appendChild(renderPlanGrid());
-    container.appendChild(gridCard);
-
-    container.appendChild(renderShipmentForm());
-
-    const tableCard = createElement('div', 'plan-card');
-    tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
-    tableCard.appendChild(renderPlanAssignments());
-    container.appendChild(tableCard);
-
-    const hint = createElement(
-      'p',
-      'plan-hint',
-      'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
-    );
-    container.appendChild(hint);
+    container.appendChild(renderTopographicPlanning());
   }
 
   return container;
