@@ -447,29 +447,6 @@ const renderSimpleTable = (headers, rows) => {
   return table;
 };
 
-const renderSimpleTable = (headers, rows) => {
-  const table = createElement('table', 'shipments-table');
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  headers.forEach((title) => {
-    headerRow.appendChild(createElement('th', null, title));
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  rows.forEach((row) => {
-    const tr = document.createElement('tr');
-    headers.forEach((key) => {
-      const value = row[key];
-      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
-    });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  return table;
-};
-
 const renderPlanAssignments = () => {
   const table = createElement('table', 'shipments-table');
 
@@ -805,7 +782,8 @@ const renderIsolationPlanning = () => {
     render();
   };
 
-  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan(isolationInputs);
+  const { vehicleConfig, requests, routeDistances, planRows = [], totals = {} } =
+    isolatedPlanning.calculatePlan(isolationInputs) || {};
   const section = createElement('div', 'plan-isolation');
 
   const intro = createElement(
@@ -864,7 +842,7 @@ const renderTopographicPlanning = () => {
     render();
   };
 
-  const { planRows, totals } = topographicPlanning.calculatePlan(topographicInputs);
+  const { planRows = [], totals = {} } = topographicPlanning.calculatePlan(topographicInputs) || {};
   const section = createElement('div', 'plan-isolation');
 
   const intro = createElement(
@@ -919,7 +897,8 @@ const renderTopographicPlanning = () => {
 
   const gridCard = createElement('div', 'plan-card');
   gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-  gridCard.appendChild(renderPlanGrid(planRows.map((row) => row.route)));
+  const routeList = Array.isArray(planRows) ? planRows.map((row) => row.route) : [];
+  gridCard.appendChild(renderPlanGrid(routeList));
   section.appendChild(gridCard);
   return section;
 };
@@ -1030,6 +1009,13 @@ const render = () => {
     const availableMethods = methods.filter(
       (method) => method.mode === (isFleetMode ? 'fleet' : 'single'),
     );
+
+    if (!availableMethods.length) {
+      const emptyState = createElement('div', 'empty-state', 'Методики не найдены. Проверьте загрузку данных.');
+      calculatorsSection.appendChild(emptyState);
+      app.appendChild(calculatorsSection);
+      return;
+    }
 
     if (!availableMethods.some((method) => method.id === currentMethod.id)) {
       currentMethod = availableMethods[0];
