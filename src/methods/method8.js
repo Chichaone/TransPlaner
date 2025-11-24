@@ -69,12 +69,17 @@ const method8 = {
       'Tн факт (фактическое время в наряде), ч': formatNumber(timePerTurn),
       'Доставлено всего (q_B_need + q_C_need + q_D_need), т': formatNumber(totalDelivered),
       'Собрано всего (q_B_pick + q_C_pick + q_D_pick), т': formatNumber(totalPicked),
-      'Загрузка на плечах (после операций)': [
-        { плечо: 'A→B', загрузка: formatNumber(loadLeg1) },
-        { плечо: 'B→C', загрузка: formatNumber(loadLeg2) },
-        { плечо: 'C→D', загрузка: formatNumber(loadLeg3) },
-        { плечо: 'D→A', загрузка: formatNumber(loadLeg4) },
-      ],
+      'Загрузка на плечах (после операций)': {
+        type: 'table',
+        headers: ['Плечо', 'Загрузка, т'],
+        columns: ['segment', 'load'],
+        rows: [
+          { segment: 'A→B', load: formatNumber(loadLeg1) },
+          { segment: 'B→C', load: formatNumber(loadLeg2) },
+          { segment: 'C→D', load: formatNumber(loadLeg3) },
+          { segment: 'D→A', load: formatNumber(loadLeg4) },
+        ],
+      },
       'Соотношение полезной массы к грузоподъёмности (q_A / q)': formatNumber(safeDivide(totalDelivered, payloadCapacity)),
     };
   },
