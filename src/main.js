@@ -322,7 +322,7 @@ const renderResults = () => {
   resultsContainer.appendChild(table);
 };
 
-const renderPlanGrid = () => {
+const renderPlanGrid = (routes = []) => {
   const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
   const numbers = ['1', '2', '3', '4', '5', '6'];
   const table = createElement('table', 'plan-grid-table');
@@ -337,11 +337,14 @@ const renderPlanGrid = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
+  const cellMap = {};
   letters.forEach((letter, rowIndex) => {
     const row = document.createElement('tr');
     row.appendChild(createElement('th', null, letter));
-    numbers.forEach((_, colIndex) => {
+    numbers.forEach((number, colIndex) => {
       const cell = document.createElement('td');
+      const coordKey = `${letter}${number}`;
+      cellMap[coordKey] = cell;
       if (rowIndex === 2 && colIndex === 2) {
         cell.textContent = 'АТП';
         cell.className = 'depot-cell';
@@ -351,6 +354,95 @@ const renderPlanGrid = () => {
     tbody.appendChild(row);
   });
 
+  table.appendChild(tbody);
+
+  const getCoord = (token) => {
+    const letter = token.charAt(0);
+    const number = token.slice(1);
+    return { row: letters.indexOf(letter), col: numbers.indexOf(number) };
+  };
+
+  const getArrow = (from, to) => {
+    if (!to) return '●';
+    const fromCoord = getCoord(from);
+    const toCoord = getCoord(to);
+    const rowDelta = toCoord.row - fromCoord.row;
+    const colDelta = toCoord.col - fromCoord.col;
+
+    if (rowDelta === 0 && colDelta > 0) return '→';
+    if (rowDelta === 0 && colDelta < 0) return '←';
+    if (colDelta === 0 && rowDelta > 0) return '↓';
+    if (colDelta === 0 && rowDelta < 0) return '↑';
+    if (rowDelta > 0 && colDelta > 0) return '↘';
+    if (rowDelta < 0 && colDelta < 0) return '↖';
+    if (rowDelta > 0 && colDelta < 0) return '↙';
+    if (rowDelta < 0 && colDelta > 0) return '↗';
+    return '•';
+  };
+
+  if (routes.length) {
+    const routeColors = ['route-color-1', 'route-color-2', 'route-color-3', 'route-color-4', 'route-color-5', 'route-color-6'];
+    routes.forEach((route, routeIndex) => {
+      const matches = route ? route.match(/[A-F][1-6]/g) : null;
+      if (!matches || matches.length === 0) return;
+      matches.forEach((token, stepIndex) => {
+        const cell = cellMap[token];
+        if (!cell) return;
+        const next = matches[stepIndex + 1];
+        const marker = createElement('span', `plan-grid-marker ${routeColors[routeIndex % routeColors.length]}`);
+        marker.textContent = getArrow(token, next);
+        marker.title = `Маршрут ${routeIndex + 1}: ${matches.join(' → ')}`;
+        cell.appendChild(marker);
+      });
+    });
+  }
+
+  if (routes.length) {
+    const container = createElement('div', 'plan-grid-wrapper');
+    container.appendChild(table);
+
+    const legend = createElement('div', 'plan-grid-legend');
+    const routeColors = ['route-color-1', 'route-color-2', 'route-color-3', 'route-color-4', 'route-color-5', 'route-color-6'];
+    routes.forEach((route, routeIndex) => {
+      const matches = route ? route.match(/[A-F][1-6]/g) : null;
+      if (!matches || matches.length === 0) return;
+      const item = createElement('div', 'plan-grid-legend__item');
+      const bullet = createElement('span', `plan-grid-legend__bullet ${routeColors[routeIndex % routeColors.length]}`);
+      bullet.textContent = '●';
+      const text = createElement('span', null, matches.join(' → '));
+      item.append(bullet, text);
+      legend.appendChild(item);
+    });
+
+    if (legend.children.length) {
+      container.appendChild(legend);
+    }
+
+    return container;
+  }
+
+  return table;
+};
+
+const renderSimpleTable = (headers, rows) => {
+  const table = createElement('table', 'shipments-table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach((title) => {
+    headerRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    headers.forEach((key) => {
+      const value = row[key];
+      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
+    });
+    tbody.appendChild(tr);
+  });
   table.appendChild(tbody);
   return table;
 };
@@ -782,11 +874,6 @@ const renderTopographicPlanning = () => {
   );
   section.appendChild(intro);
 
-  const gridCard = createElement('div', 'plan-card');
-  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-  gridCard.appendChild(renderPlanGrid());
-  section.appendChild(gridCard);
-
   section.appendChild(renderVehicleConfigEditor(topographicDraft, setDraft));
   section.appendChild(renderRequestsEditor(topographicDraft, setDraft));
   section.appendChild(renderRouteDistancesEditor(topographicDraft, setDraft));
@@ -829,6 +916,11 @@ const renderTopographicPlanning = () => {
   );
 
   section.appendChild(resultsCard);
+
+  const gridCard = createElement('div', 'plan-card');
+  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
+  gridCard.appendChild(renderPlanGrid(planRows.map((row) => row.route)));
+  section.appendChild(gridCard);
   return section;
 };
 
