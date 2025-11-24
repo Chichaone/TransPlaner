@@ -72,6 +72,10 @@ const renderModeToggle = () => {
   checkbox.className = 'mode-toggle__input';
   checkbox.addEventListener('change', () => {
     isFleetMode = checkbox.checked;
+    const nextMethods = methods.filter((method) => method.mode === (isFleetMode ? 'fleet' : 'single'));
+    if (nextMethods.length) {
+      currentMethod = nextMethods[0];
+    }
     lastResults = null;
     render();
   });
