@@ -51,8 +51,8 @@ const fleetMethods = [
       const payloadPerTrip = payload * loadFactor; // Qₑₒ
       const tonneKmPerTrip = payloadPerTrip * loadedDistance; // Pₑₒ
 
-      const operationTime = singleOperationTime ||
-        (loadUnloadTime > 0 ? loadUnloadTime / 2 : 0); // Rₘₐₓ
+      const operationTime =
+        singleOperationTime || (loadUnloadTime > 0 ? loadUnloadTime / 2 : 0); // Rₘₐₓ
       const throughputRaw = operationTime > 0 ? safeDivide(tripTime, operationTime) : 0; // Аэ′
       const throughput = Math.max(Math.floor(throughputRaw), 1); // Аэ
 
@@ -85,11 +85,6 @@ const fleetMethods = [
         perVehicle.push({ trips, tonnage, tonneKm, totalDistance, actualDutyTime });
       }
 
-      const tonnageAvg = safeDivide(tonnageSum, throughput); // Qн
-      const tonneKmAvg = safeDivide(tonneKmSum, throughput); // Pн
-      const distanceAvg = safeDivide(distanceSum, throughput); // Lобщ
-      const actualDutyAvg = safeDivide(actualDutySum, throughput); // Tн факт
-
       return {
         'Длина маршрута lм, км': formatNumber(routeLength),
         'Время ездки tₑₒ, ч': formatNumber(tripTime),
@@ -110,10 +105,10 @@ const fleetMethods = [
         'Фактическое время в наряде Tнᵢ факт (по автомобилям), ч': perVehicle
           .map(({ actualDutyTime }) => formatNumber(actualDutyTime))
           .join(', '),
-        'Суммарная выработка Qн = (1 / Аэ) Σ Qᵢ, т': formatNumber(tonnageAvg),
-        'Суммарные тонно-километры Pн = (1 / Аэ) Σ Pᵢ, ткм': formatNumber(tonneKmAvg),
-        'Суммарный пробег Lобщ = (1 / Аэ) Σ Lобщᵢ, км': formatNumber(distanceAvg),
-        'Суммарное фактическое время Tн факт = (1 / Аэ) Σ Tн фактᵢ, ч': formatNumber(actualDutyAvg),
+        'Суммарная выработка Qн = Σ Qᵢ, т': formatNumber(tonnageSum),
+        'Суммарные тонно-километры Pн = Σ Pᵢ, ткм': formatNumber(tonneKmSum),
+        'Суммарный пробег Lобщ = Σ Lобщᵢ, км': formatNumber(distanceSum),
+        'Суммарное фактическое время Tн факт = Σ Tн фактᵢ, ч': formatNumber(actualDutySum),
       };
     },
   },
