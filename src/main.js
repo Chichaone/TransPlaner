@@ -257,14 +257,18 @@ const renderResults = () => {
       nestedTable.appendChild(nestedThead);
 
       const nestedTbody = document.createElement('tbody');
+      const columnKeys = value.columns || null;
+      const fallbackKeys = ['index', 'trips', 'tonnage', 'tonneKm', 'totalDistance', 'actualDutyTime'];
+
       value.rows.forEach((item) => {
         const nestedRow = document.createElement('tr');
-        nestedRow.appendChild(createElement('td', null, String(item.index)));
-        nestedRow.appendChild(createElement('td', null, String(item.trips)));
-        nestedRow.appendChild(createElement('td', null, String(item.tonnage)));
-        nestedRow.appendChild(createElement('td', null, String(item.tonneKm)));
-        nestedRow.appendChild(createElement('td', null, String(item.totalDistance)));
-        nestedRow.appendChild(createElement('td', null, String(item.actualDutyTime)));
+        const keysToUse = columnKeys && columnKeys.length ? columnKeys : fallbackKeys;
+
+        keysToUse.forEach((key) => {
+          const cellValue = item[key];
+          nestedRow.appendChild(createElement('td', null, cellValue !== undefined ? String(cellValue) : ''));
+        });
+
         nestedTbody.appendChild(nestedRow);
       });
       nestedTable.appendChild(nestedTbody);

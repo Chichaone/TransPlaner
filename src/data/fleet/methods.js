@@ -290,6 +290,7 @@ const fleetMethods = [
         'Расчёт для подачи в два пункта (j группы)': {
           type: 'table',
           headers: ['j', 'Tмj, ч', 'Zоj = INT(Tмj/tо)', 'ΔTнj, ч', 'Zе₁', 'Zе₂', 'Zе', 'Qнj, т', 'Pнj, ткм'],
+          columns: ['index', 'availableTime', 'intTurnovers', 'remainder', 'tripsOnLeg1', 'tripsOnLeg2', 'totalTrips', 'tonnage', 'tonneKm'],
           rows: perGroupRows,
         },
         'Показатели по автомобилям': {
