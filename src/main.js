@@ -10,6 +10,7 @@ let lastResults = null;
 let isFleetMode = false;
 let currentPlanMode = 'isolation';
 let isolationInputs = isolatedPlanning.getDefaultInputs();
+let isolationDraft = isolatedPlanning.getDefaultInputs();
 
 const shipments = [];
 const planAssignments = {};
@@ -36,6 +37,8 @@ const createElement = (tag, className, textContent) => {
   }
   return element;
 };
+
+const cloneValue = (value) => JSON.parse(JSON.stringify(value));
 
 const renderTabNavigation = () => {
   const nav = createElement('div', 'tab-nav');
@@ -491,11 +494,11 @@ const renderVehicleConfigEditor = () => {
     const input = document.createElement('input');
     input.type = 'number';
     input.step = fieldConfig.step;
-    input.value = isolationInputs.vehicleConfig[fieldConfig.name];
+    input.value = isolationDraft.vehicleConfig[fieldConfig.name];
     bindNumberChange(input, (value) => {
-      isolationInputs = {
-        ...isolationInputs,
-        vehicleConfig: { ...isolationInputs.vehicleConfig, [fieldConfig.name]: value },
+      isolationDraft = {
+        ...isolationDraft,
+        vehicleConfig: { ...isolationDraft.vehicleConfig, [fieldConfig.name]: value },
       };
       render();
     });
@@ -507,7 +510,7 @@ const renderVehicleConfigEditor = () => {
     'p',
     'plan-hint',
     `Время на погрузку-выгрузку за ездку: ${formatNumber(
-      isolationInputs.vehicleConfig.payload * isolationInputs.vehicleConfig.serviceTimePerTon,
+      isolationDraft.vehicleConfig.payload * isolationDraft.vehicleConfig.serviceTimePerTon,
     )} ч`,
   );
   card.append(form, derived);
@@ -529,16 +532,16 @@ const renderRequestsEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  isolationInputs.requests.forEach((item, index) => {
+  isolationDraft.requests.forEach((item, index) => {
     const row = document.createElement('tr');
 
     const routeInput = document.createElement('input');
     routeInput.type = 'text';
     routeInput.value = item.route;
     routeInput.addEventListener('input', () => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], route: routeInput.value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(routeInput);
@@ -547,9 +550,9 @@ const renderRequestsEditor = () => {
     shipperInput.type = 'text';
     shipperInput.value = item.shipper;
     shipperInput.addEventListener('input', () => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], shipper: shipperInput.value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(shipperInput);
@@ -558,9 +561,9 @@ const renderRequestsEditor = () => {
     consigneeInput.type = 'text';
     consigneeInput.value = item.consignee;
     consigneeInput.addEventListener('input', () => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], consignee: consigneeInput.value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(consigneeInput);
@@ -570,9 +573,9 @@ const renderRequestsEditor = () => {
     volumeInput.step = 'any';
     volumeInput.value = item.volume;
     bindNumberChange(volumeInput, (value) => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], volume: value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(volumeInput);
@@ -582,9 +585,9 @@ const renderRequestsEditor = () => {
     timeInput.step = 'any';
     timeInput.value = item.workTime;
     bindNumberChange(timeInput, (value) => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], workTime: value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(timeInput);
@@ -611,7 +614,7 @@ const renderRouteDistancesEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  Object.entries(isolationInputs.routeDistances).forEach(([route, distances]) => {
+  Object.entries(isolationDraft.routeDistances).forEach(([route, distances]) => {
     const row = document.createElement('tr');
     row.appendChild(createElement('td', null, route));
 
@@ -622,11 +625,11 @@ const renderRouteDistancesEditor = () => {
       input.step = 'any';
       input.value = distances[key];
       bindNumberChange(input, (value) => {
-        isolationInputs = {
-          ...isolationInputs,
+        isolationDraft = {
+          ...isolationDraft,
           routeDistances: {
-            ...isolationInputs.routeDistances,
-            [route]: { ...isolationInputs.routeDistances[route], [key]: value },
+            ...isolationDraft.routeDistances,
+            [route]: { ...isolationDraft.routeDistances[route], [key]: value },
           },
         };
         render();
@@ -657,7 +660,7 @@ const renderPlanVolumesEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  isolationInputs.requests.forEach((request, index) => {
+  isolationDraft.requests.forEach((request, index) => {
     const row = document.createElement('tr');
     row.appendChild(createElement('td', null, request.route));
 
@@ -666,9 +669,9 @@ const renderPlanVolumesEditor = () => {
     volumeInput.step = 'any';
     volumeInput.value = request.volume;
     bindNumberChange(volumeInput, (value) => {
-      const next = isolationInputs.requests.slice();
+      const next = isolationDraft.requests.slice();
       next[index] = { ...next[index], volume: value };
-      isolationInputs = { ...isolationInputs, requests: next };
+      isolationDraft = { ...isolationDraft, requests: next };
       render();
     });
     row.appendChild(createElement('td', null)).appendChild(volumeInput);
@@ -676,7 +679,7 @@ const renderPlanVolumesEditor = () => {
     tbody.appendChild(row);
   });
 
-  const total = isolationInputs.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
+  const total = isolationDraft.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
   const totalRow = document.createElement('tr');
   totalRow.appendChild(createElement('td', 'table-total', 'Итого'));
   totalRow.appendChild(createElement('td', 'table-total', formatNumber(total)));
@@ -684,6 +687,28 @@ const renderPlanVolumesEditor = () => {
 
   table.appendChild(tbody);
   card.appendChild(table);
+  return card;
+};
+
+const renderPlanRecalculate = () => {
+  const card = createElement('div', 'plan-card plan-actions-card');
+  card.appendChild(createElement('h3', null, 'Пересчёт плана'));
+  card.appendChild(
+    createElement(
+      'p',
+      'plan-hint',
+      'После изменения исходных данных нажмите кнопку, чтобы обновить расчёт таблицы 19.',
+    ),
+  );
+
+  const button = createElement('button', 'calculate plan-recalculate', 'Рассчитать план');
+  button.type = 'button';
+  button.addEventListener('click', () => {
+    isolationInputs = cloneValue(isolationDraft);
+    render();
+  });
+
+  card.appendChild(button);
   return card;
 };
 
@@ -702,6 +727,7 @@ const renderIsolationPlanning = () => {
   section.appendChild(renderRequestsEditor());
   section.appendChild(renderRouteDistancesEditor());
   section.appendChild(renderPlanVolumesEditor());
+  section.appendChild(renderPlanRecalculate());
 
   const resultsCard = createElement('div', 'plan-card');
   resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));

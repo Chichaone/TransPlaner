@@ -484,6 +484,13 @@ body.dark .plan-card {
   margin-bottom: 1rem;
 }
 
+.plan-actions-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
 .plan-isolation .plan-card + .plan-card {
   margin-top: 0.5rem;
 }
