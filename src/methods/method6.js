@@ -61,11 +61,12 @@ const method6 = {
       Math.max(totalLoadedAtA - demandB - demandC, 0) * loadedDistance3;
 
     return {
-      'Длина маршрута (lₘ = l_g₁ + l_g₂ + l_g₃ + lₓ), км': formatNumber(routeLength),
+      'Длина маршрута lₘ = l_g₁ + l_g₂ + l_g₃ + lₓ, км': formatNumber(routeLength),
       'Время ездки (tₑₒ), ч': formatNumber(tripTime),
-      'Выработка в тоннах за ездку (Qₑ = q·γ), т': formatNumber(effectiveLoad),
-      'Фактическая загрузка из пункта A (q_A = q_B + q_C + q_D), т': formatNumber(totalLoadedAtA),
+      'Выработка за ездку Qₑ, т': formatNumber(effectiveLoad),
       'Выработка в тонно-километрах за ездку (Pₑ), т·км': formatNumber(tonKm),
+      'Фактическое время в наряде (Tн факт), ч': formatNumber(tripTime),
+      'Фактическая загрузка из пункта A (q_A = q_B + q_C + q_D), т': formatNumber(totalLoadedAtA),
       'Проверка баланса груза (q_A / q·γ)': formatNumber(safeDivide(totalLoadedAtA, effectiveLoad)),
     };
   },
