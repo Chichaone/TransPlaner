@@ -171,7 +171,7 @@ const fleetMethods = [
 
       const tonneKmTrip1 = payloadPerTrip * loadedDistance1; // Pе₁
       const tonneKmTrip2 = payloadPerTrip * loadedDistance2; // Pе₂
-      const tonneKmPerTurn = tonneKmTrip1 + tonneKmTrip2; // Pо = qγ·lг₁ + qγ·lг₂
+      const tonneKmPerTurn = tonneKmTrip1 + tonneKmTrip2; // Pо = Pе₁ + Pе₂
 
       const throughputSingleRaw = operationTime > 0 ? safeDivide(turnaroundTime, operationTime) : 0; // Aэ′ вариант 1
       const throughputSingle = Math.max(Math.floor(throughputSingleRaw), 1);
@@ -203,7 +203,7 @@ const fleetMethods = [
         const totalTrips = baseTrips + extraTrip; // Zе
 
         const tonnage = payloadPerTrip * totalTrips; // Qнj
-        const tonneKm = payloadPerTrip * (tripsOnLeg1 * loadedDistance1 + tripsOnLeg2 * loadedDistance2); // Pнj
+        const tonneKm = tonneKmTrip1 * tripsOnLeg1 + tonneKmTrip2 * tripsOnLeg2; // Pнj
 
         const startsAtP1 = j % 2 !== 0; // чередуем П1 и П2
         const isWholeTurn = Math.abs(rawTurnovers - intTurnovers) < 1e-9;
