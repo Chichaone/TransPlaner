@@ -501,6 +501,80 @@ body.dark .plan-config {
   color: rgba(226, 232, 240, 0.9);
 }
 
+.plan-config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.9);
+}
+
+body.dark .plan-field {
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.plan-field input {
+  border-radius: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: inherit;
+}
+
+body.dark .plan-field input {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.plan-editable-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.plan-editable-table th,
+.plan-editable-table td {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+body.dark .plan-editable-table th,
+body.dark .plan-editable-table td {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.plan-editable-table input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.95rem;
+  background: rgba(255, 255, 255, 0.95);
+  color: inherit;
+}
+
+body.dark .plan-editable-table input {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.table-total {
+  font-weight: 700;
+  background: rgba(13, 110, 253, 0.1);
+}
+
+body.dark .table-total {
+  background: rgba(13, 110, 253, 0.18);
+}
+
 .shipment-form {
   display: grid;
   gap: 1rem;

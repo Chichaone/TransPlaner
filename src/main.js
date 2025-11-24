@@ -1,5 +1,6 @@
 import { methods } from './data/methods.js';
 import { isolatedPlanning } from './data/planning/isolated.js';
+import { formatNumber } from './utils.js';
 
 const app = document.getElementById('app');
 
@@ -8,6 +9,7 @@ let currentMethod = methods[0];
 let lastResults = null;
 let isFleetMode = false;
 let currentPlanMode = 'isolation';
+let isolationInputs = isolatedPlanning.getDefaultInputs();
 
 const shipments = [];
 const planAssignments = {};
@@ -462,58 +464,244 @@ const renderPlanModeNav = () => {
   return nav;
 };
 
+const bindNumberChange = (input, onChange) => {
+  input.addEventListener('input', () => {
+    const value = Number(input.value);
+    onChange(Number.isFinite(value) ? value : 0);
+  });
+};
+
+const renderVehicleConfigEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
+
+  const form = document.createElement('form');
+  form.className = 'plan-config-grid';
+
+  const fields = [
+    { name: 'payload', label: 'Грузоподъёмность, т', step: 'any' },
+    { name: 'loadFactor', label: 'Коэффициент использования грузоподъёмности', step: 'any' },
+    { name: 'serviceTimePerTon', label: 'Время на погрузку-выгрузку, ч/т', step: 'any' },
+    { name: 'technicalSpeed', label: 'Среднетехническая скорость, км/ч', step: 'any' },
+  ];
+
+  fields.forEach((fieldConfig) => {
+    const field = createElement('label', 'plan-field');
+    field.textContent = fieldConfig.label;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.step = fieldConfig.step;
+    input.value = isolationInputs.vehicleConfig[fieldConfig.name];
+    bindNumberChange(input, (value) => {
+      isolationInputs = {
+        ...isolationInputs,
+        vehicleConfig: { ...isolationInputs.vehicleConfig, [fieldConfig.name]: value },
+      };
+      render();
+    });
+    field.appendChild(input);
+    form.appendChild(field);
+  });
+
+  const derived = createElement(
+    'p',
+    'plan-hint',
+    `Время на погрузку-выгрузку за ездку: ${formatNumber(
+      isolationInputs.vehicleConfig.payload * isolationInputs.vehicleConfig.serviceTimePerTon,
+    )} ч`,
+  );
+  card.append(form, derived);
+  return card;
+};
+
+const renderRequestsEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'ГО', 'ГП', 'Объём, т', 'Время работы, ч'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  isolationInputs.requests.forEach((item, index) => {
+    const row = document.createElement('tr');
+
+    const routeInput = document.createElement('input');
+    routeInput.type = 'text';
+    routeInput.value = item.route;
+    routeInput.addEventListener('input', () => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], route: routeInput.value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(routeInput);
+
+    const shipperInput = document.createElement('input');
+    shipperInput.type = 'text';
+    shipperInput.value = item.shipper;
+    shipperInput.addEventListener('input', () => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], shipper: shipperInput.value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(shipperInput);
+
+    const consigneeInput = document.createElement('input');
+    consigneeInput.type = 'text';
+    consigneeInput.value = item.consignee;
+    consigneeInput.addEventListener('input', () => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], consignee: consigneeInput.value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(consigneeInput);
+
+    const volumeInput = document.createElement('input');
+    volumeInput.type = 'number';
+    volumeInput.step = 'any';
+    volumeInput.value = item.volume;
+    bindNumberChange(volumeInput, (value) => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], volume: value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(volumeInput);
+
+    const timeInput = document.createElement('input');
+    timeInput.type = 'number';
+    timeInput.step = 'any';
+    timeInput.value = item.workTime;
+    bindNumberChange(timeInput, (value) => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], workTime: value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(timeInput);
+
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
+const renderRouteDistancesEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'lг, км', 'lх, км', 'lн1, км', 'lн2, км'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  Object.entries(isolationInputs.routeDistances).forEach(([route, distances]) => {
+    const row = document.createElement('tr');
+    row.appendChild(createElement('td', null, route));
+
+    ['loadedDistance', 'emptyDistance', 'zeroRun1', 'zeroRun2'].forEach((key) => {
+      const cell = document.createElement('td');
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = 'any';
+      input.value = distances[key];
+      bindNumberChange(input, (value) => {
+        isolationInputs = {
+          ...isolationInputs,
+          routeDistances: {
+            ...isolationInputs.routeDistances,
+            [route]: { ...isolationInputs.routeDistances[route], [key]: value },
+          },
+        };
+        render();
+      });
+      cell.appendChild(input);
+      row.appendChild(cell);
+    });
+
+    tbody.appendChild(row);
+  });
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
+const renderPlanVolumesEditor = () => {
+  const card = createElement('div', 'plan-card');
+  card.appendChild(createElement('h3', null, 'Плановые объёмы (табл. 19, Qпл)'));
+
+  const table = document.createElement('table');
+  table.className = 'plan-editable-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  ['Маршрут', 'Qпл, т'].forEach((title) => {
+    headRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  isolationInputs.requests.forEach((request, index) => {
+    const row = document.createElement('tr');
+    row.appendChild(createElement('td', null, request.route));
+
+    const volumeInput = document.createElement('input');
+    volumeInput.type = 'number';
+    volumeInput.step = 'any';
+    volumeInput.value = request.volume;
+    bindNumberChange(volumeInput, (value) => {
+      const next = isolationInputs.requests.slice();
+      next[index] = { ...next[index], volume: value };
+      isolationInputs = { ...isolationInputs, requests: next };
+      render();
+    });
+    row.appendChild(createElement('td', null)).appendChild(volumeInput);
+
+    tbody.appendChild(row);
+  });
+
+  const total = isolationInputs.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
+  const totalRow = document.createElement('tr');
+  totalRow.appendChild(createElement('td', 'table-total', 'Итого'));
+  totalRow.appendChild(createElement('td', 'table-total', formatNumber(total)));
+  tbody.appendChild(totalRow);
+
+  table.appendChild(tbody);
+  card.appendChild(table);
+  return card;
+};
+
 const renderIsolationPlanning = () => {
-  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan();
+  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan(isolationInputs);
   const section = createElement('div', 'plan-isolation');
 
   const intro = createElement(
     'p',
     'plan-hint',
-    'Изолированный способ расчёта использует маятниковый маршрут с обратным холостым пробегом для каждой заявки и подбирает количество автомобилей так, чтобы перекрыть плановый объём.'
+    'Изолированный способ расчёта использует маятниковый маршрут с обратным холостым пробегом для каждой заявки и подбирает количество автомобилей так, чтобы перекрыть плановый объём.',
   );
   section.appendChild(intro);
 
-  const configCard = createElement('div', 'plan-card');
-  configCard.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
-  const configList = createElement('ul', 'plan-config');
-  [
-    `Грузоподъёмность: ${vehicleConfig.payload} т`,
-    `Коэффициент использования грузоподъёмности: ${vehicleConfig.loadFactor}`,
-    `Время на погрузку-выгрузку: ${vehicleConfig.serviceTime} ч (0,1 ч/т)`,
-    `Среднетехническая скорость: ${vehicleConfig.technicalSpeed} км/ч`,
-  ].forEach((item) => {
-    configList.appendChild(createElement('li', null, item));
-  });
-  configCard.appendChild(configList);
-  section.appendChild(configCard);
-
-  const requestsCard = createElement('div', 'plan-card');
-  requestsCard.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
-  const requestRows = requests.map((item) => ({
-    Маршрут: item.route,
-    ГО: item.shipper,
-    ГП: item.consignee,
-    'Объём, т': item.volume,
-    'Время работы, ч': item.workTime,
-  }));
-  requestsCard.appendChild(
-    renderSimpleTable(['Маршрут', 'ГО', 'ГП', 'Объём, т', 'Время работы, ч'], requestRows),
-  );
-  section.appendChild(requestsCard);
-
-  const routesCard = createElement('div', 'plan-card');
-  routesCard.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
-  const distanceRows = Object.entries(routeDistances).map(([route, d]) => ({
-    Маршрут: route,
-    'lг, км': d.loadedDistance,
-    'lх, км': d.emptyDistance,
-    'lн1, км': d.zeroRun1,
-    'lн2, км': d.zeroRun2,
-  }));
-  routesCard.appendChild(
-    renderSimpleTable(['Маршрут', 'lг, км', 'lх, км', 'lн1, км', 'lн2, км'], distanceRows),
-  );
-  section.appendChild(routesCard);
+  section.appendChild(renderVehicleConfigEditor());
+  section.appendChild(renderRequestsEditor());
+  section.appendChild(renderRouteDistancesEditor());
+  section.appendChild(renderPlanVolumesEditor());
 
   const resultsCard = createElement('div', 'plan-card');
   resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));

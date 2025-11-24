@@ -1,13 +1,13 @@
 import { formatNumber, safeDivide } from '../../utils.js';
 
-const vehicleConfig = {
+const defaultVehicleConfig = {
   payload: 5,
   loadFactor: 1,
   serviceTimePerTon: 0.1,
   technicalSpeed: 25,
 };
 
-const requests = [
+const defaultRequests = [
   { route: 'A6B2B2A6', shipper: 'A6', consignee: 'B2', volume: 20, workTime: 10 },
   { route: 'B2F1F1B2', shipper: 'B2', consignee: 'F1', volume: 30, workTime: 9 },
   { route: 'F3E4E4F3', shipper: 'F3', consignee: 'E4', volume: 70, workTime: 8 },
@@ -17,7 +17,7 @@ const requests = [
   { route: 'E4F3F3E4', shipper: 'E4', consignee: 'F3', volume: 40, workTime: 8 },
 ];
 
-const routeDistances = {
+const defaultRouteDistances = {
   A6B2B2A6: { loadedDistance: 15, emptyDistance: 15, zeroRun1: 15, zeroRun2: 15 },
   B2F1F1B2: { loadedDistance: 18, emptyDistance: 18, zeroRun1: 12, zeroRun2: 18 },
   F3E4E4F3: { loadedDistance: 6, emptyDistance: 6, zeroRun1: 12, zeroRun2: 9 },
@@ -26,6 +26,12 @@ const routeDistances = {
   D5D1D1D5: { loadedDistance: 15, emptyDistance: 15, zeroRun1: 9, zeroRun2: 12 },
   E4F3F3E4: { loadedDistance: 6, emptyDistance: 6, zeroRun1: 9, zeroRun2: 12 },
 };
+
+const getDefaultInputs = () => ({
+  vehicleConfig: { ...defaultVehicleConfig },
+  requests: defaultRequests.map((req) => ({ ...req })),
+  routeDistances: JSON.parse(JSON.stringify(defaultRouteDistances)),
+});
 
 const calculateSingleVehicle = ({
   payload,
@@ -67,7 +73,11 @@ const calculateSingleVehicle = ({
   };
 };
 
-const calculatePlan = () => {
+const calculatePlan = (inputs = getDefaultInputs()) => {
+  const vehicleConfig = inputs.vehicleConfig ?? getDefaultInputs().vehicleConfig;
+  const requests = inputs.requests ?? getDefaultInputs().requests;
+  const routeDistances = inputs.routeDistances ?? getDefaultInputs().routeDistances;
+
   const serviceTime = vehicleConfig.payload * vehicleConfig.serviceTimePerTon;
 
   const planRows = requests.map((request) => {
@@ -147,6 +157,7 @@ const calculatePlan = () => {
 
 const isolatedPlanning = {
   calculatePlan,
+  getDefaultInputs,
 };
 
 export { isolatedPlanning };
