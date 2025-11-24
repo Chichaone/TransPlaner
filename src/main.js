@@ -1,5 +1,6 @@
 import { methods } from './data/methods.js';
 import { isolatedPlanning } from './data/planning/isolated.js';
+import { topographicPlanning } from './data/planning/topographic.js';
 import { formatNumber } from './utils.js';
 
 const app = document.getElementById('app');
@@ -11,6 +12,8 @@ let isFleetMode = false;
 let currentPlanMode = 'isolation';
 let isolationInputs = isolatedPlanning.getDefaultInputs();
 let isolationDraft = isolatedPlanning.getDefaultInputs();
+let topographicInputs = topographicPlanning.getDefaultInputs();
+let topographicDraft = topographicPlanning.getDefaultInputs();
 
 const shipments = [];
 const planAssignments = {};
@@ -449,6 +452,7 @@ const renderPlanModeNav = () => {
   const nav = createElement('div', 'plan-mode-nav');
   const modes = [
     { id: 'isolation', label: 'Изолированное планирование' },
+    { id: 'topographic', label: 'Топографическое планирование' },
     { id: 'requests', label: 'Журнал заявок' },
   ];
 
@@ -474,7 +478,7 @@ const bindNumberChange = (input, onChange) => {
   });
 };
 
-const renderVehicleConfigEditor = () => {
+const renderVehicleConfigEditor = (draft, setDraft) => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
 
@@ -494,13 +498,12 @@ const renderVehicleConfigEditor = () => {
     const input = document.createElement('input');
     input.type = 'number';
     input.step = fieldConfig.step;
-    input.value = isolationDraft.vehicleConfig[fieldConfig.name];
+    input.value = draft.vehicleConfig[fieldConfig.name];
     bindNumberChange(input, (value) => {
-      isolationDraft = {
-        ...isolationDraft,
-        vehicleConfig: { ...isolationDraft.vehicleConfig, [fieldConfig.name]: value },
-      };
-      render();
+      setDraft({
+        ...draft,
+        vehicleConfig: { ...draft.vehicleConfig, [fieldConfig.name]: value },
+      });
     });
     field.appendChild(input);
     form.appendChild(field);
@@ -510,14 +513,14 @@ const renderVehicleConfigEditor = () => {
     'p',
     'plan-hint',
     `Время на погрузку-выгрузку за ездку: ${formatNumber(
-      isolationDraft.vehicleConfig.payload * isolationDraft.vehicleConfig.serviceTimePerTon,
+      draft.vehicleConfig.payload * draft.vehicleConfig.serviceTimePerTon,
     )} ч`,
   );
   card.append(form, derived);
   return card;
 };
 
-const renderRequestsEditor = () => {
+const renderRequestsEditor = (draft, setDraft) => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
 
@@ -532,17 +535,16 @@ const renderRequestsEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  isolationDraft.requests.forEach((item, index) => {
+  draft.requests.forEach((item, index) => {
     const row = document.createElement('tr');
 
     const routeInput = document.createElement('input');
     routeInput.type = 'text';
     routeInput.value = item.route;
     routeInput.addEventListener('input', () => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], route: routeInput.value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(routeInput);
 
@@ -550,10 +552,9 @@ const renderRequestsEditor = () => {
     shipperInput.type = 'text';
     shipperInput.value = item.shipper;
     shipperInput.addEventListener('input', () => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], shipper: shipperInput.value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(shipperInput);
 
@@ -561,10 +562,9 @@ const renderRequestsEditor = () => {
     consigneeInput.type = 'text';
     consigneeInput.value = item.consignee;
     consigneeInput.addEventListener('input', () => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], consignee: consigneeInput.value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(consigneeInput);
 
@@ -573,10 +573,9 @@ const renderRequestsEditor = () => {
     volumeInput.step = 'any';
     volumeInput.value = item.volume;
     bindNumberChange(volumeInput, (value) => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], volume: value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(volumeInput);
 
@@ -585,10 +584,9 @@ const renderRequestsEditor = () => {
     timeInput.step = 'any';
     timeInput.value = item.workTime;
     bindNumberChange(timeInput, (value) => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], workTime: value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(timeInput);
 
@@ -599,7 +597,7 @@ const renderRequestsEditor = () => {
   return card;
 };
 
-const renderRouteDistancesEditor = () => {
+const renderRouteDistancesEditor = (draft, setDraft) => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
 
@@ -614,7 +612,7 @@ const renderRouteDistancesEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  Object.entries(isolationDraft.routeDistances).forEach(([route, distances]) => {
+  Object.entries(draft.routeDistances).forEach(([route, distances]) => {
     const row = document.createElement('tr');
     row.appendChild(createElement('td', null, route));
 
@@ -625,14 +623,13 @@ const renderRouteDistancesEditor = () => {
       input.step = 'any';
       input.value = distances[key];
       bindNumberChange(input, (value) => {
-        isolationDraft = {
-          ...isolationDraft,
+        setDraft({
+          ...draft,
           routeDistances: {
-            ...isolationDraft.routeDistances,
-            [route]: { ...isolationDraft.routeDistances[route], [key]: value },
+            ...draft.routeDistances,
+            [route]: { ...draft.routeDistances[route], [key]: value },
           },
-        };
-        render();
+        });
       });
       cell.appendChild(input);
       row.appendChild(cell);
@@ -645,7 +642,7 @@ const renderRouteDistancesEditor = () => {
   return card;
 };
 
-const renderPlanVolumesEditor = () => {
+const renderPlanVolumesEditor = (draft, setDraft) => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Плановые объёмы (табл. 19, Qпл)'));
 
@@ -660,7 +657,7 @@ const renderPlanVolumesEditor = () => {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  isolationDraft.requests.forEach((request, index) => {
+  draft.requests.forEach((request, index) => {
     const row = document.createElement('tr');
     row.appendChild(createElement('td', null, request.route));
 
@@ -669,17 +666,16 @@ const renderPlanVolumesEditor = () => {
     volumeInput.step = 'any';
     volumeInput.value = request.volume;
     bindNumberChange(volumeInput, (value) => {
-      const next = isolationDraft.requests.slice();
+      const next = draft.requests.slice();
       next[index] = { ...next[index], volume: value };
-      isolationDraft = { ...isolationDraft, requests: next };
-      render();
+      setDraft({ ...draft, requests: next });
     });
     row.appendChild(createElement('td', null)).appendChild(volumeInput);
 
     tbody.appendChild(row);
   });
 
-  const total = isolationDraft.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
+  const total = draft.requests.reduce((sum, item) => sum + (Number(item.volume) || 0), 0);
   const totalRow = document.createElement('tr');
   totalRow.appendChild(createElement('td', 'table-total', 'Итого'));
   totalRow.appendChild(createElement('td', 'table-total', formatNumber(total)));
@@ -690,7 +686,7 @@ const renderPlanVolumesEditor = () => {
   return card;
 };
 
-const renderPlanRecalculate = () => {
+const renderPlanRecalculate = (onApply) => {
   const card = createElement('div', 'plan-card plan-actions-card');
   card.appendChild(createElement('h3', null, 'Пересчёт плана'));
   card.appendChild(
@@ -704,8 +700,7 @@ const renderPlanRecalculate = () => {
   const button = createElement('button', 'calculate plan-recalculate', 'Рассчитать план');
   button.type = 'button';
   button.addEventListener('click', () => {
-    isolationInputs = cloneValue(isolationDraft);
-    render();
+    onApply();
   });
 
   card.appendChild(button);
@@ -713,6 +708,11 @@ const renderPlanRecalculate = () => {
 };
 
 const renderIsolationPlanning = () => {
+  const setDraft = (nextDraft) => {
+    isolationDraft = nextDraft;
+    render();
+  };
+
   const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan(isolationInputs);
   const section = createElement('div', 'plan-isolation');
 
@@ -723,11 +723,16 @@ const renderIsolationPlanning = () => {
   );
   section.appendChild(intro);
 
-  section.appendChild(renderVehicleConfigEditor());
-  section.appendChild(renderRequestsEditor());
-  section.appendChild(renderRouteDistancesEditor());
-  section.appendChild(renderPlanVolumesEditor());
-  section.appendChild(renderPlanRecalculate());
+  section.appendChild(renderVehicleConfigEditor(isolationDraft, setDraft));
+  section.appendChild(renderRequestsEditor(isolationDraft, setDraft));
+  section.appendChild(renderRouteDistancesEditor(isolationDraft, setDraft));
+  section.appendChild(renderPlanVolumesEditor(isolationDraft, setDraft));
+  section.appendChild(
+    renderPlanRecalculate(() => {
+      isolationInputs = cloneValue(isolationDraft);
+      render();
+    }),
+  );
 
   const resultsCard = createElement('div', 'plan-card');
   resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));
@@ -753,6 +758,67 @@ const renderIsolationPlanning = () => {
   resultsCard.appendChild(
     renderSimpleTable(
       ['Маршрут', 'Qпл, т', 'Рд, т·км', 'Lобщ, км', 'ΣTн факт, ч', 'Апл, ед.'],
+      [...resultRows, totalRow],
+    ),
+  );
+
+  section.appendChild(resultsCard);
+  return section;
+};
+
+const renderTopographicPlanning = () => {
+  const setDraft = (nextDraft) => {
+    topographicDraft = nextDraft;
+    render();
+  };
+
+  const { planRows, totals } = topographicPlanning.calculatePlan(topographicInputs);
+  const section = createElement('div', 'plan-isolation');
+
+  const intro = createElement(
+    'p',
+    'plan-hint',
+    'Топографический метод опирается на общую карту заявок: для исходных данных можно скорректировать параметры подвижного состава, заявки и пробеги, затем выполнить пересчёт по условиям to < Tн.',
+  );
+  section.appendChild(intro);
+
+  section.appendChild(renderVehicleConfigEditor(topographicDraft, setDraft));
+  section.appendChild(renderRequestsEditor(topographicDraft, setDraft));
+  section.appendChild(renderRouteDistancesEditor(topographicDraft, setDraft));
+  section.appendChild(renderPlanVolumesEditor(topographicDraft, setDraft));
+  section.appendChild(
+    renderPlanRecalculate(() => {
+      topographicInputs = cloneValue(topographicDraft);
+      render();
+    }),
+  );
+
+  const resultsCard = createElement('div', 'plan-card');
+  resultsCard.appendChild(createElement('h3', null, 'Плановые величины (топографический метод)'));
+
+  const resultRows = planRows.map((row) => ({
+    Маршрут: row.route,
+    'Qпл, т': row.plannedTonnageLabel,
+    'Рд, т·км': row.plannedTonKmLabel,
+    'Lобщ, км': row.plannedDistanceLabel,
+    'ΣTн факт, ч': row.plannedDutyTimeLabel,
+    'Апл, ед.': row.vehiclesNeeded,
+    'Проверка to < Tн': row.feasibilityLabel,
+  }));
+
+  const totalRow = {
+    Маршрут: 'Итого',
+    'Qпл, т': totals.plannedTonnageLabel,
+    'Рд, т·км': totals.plannedTonKmLabel,
+    'Lобщ, км': totals.plannedDistanceLabel,
+    'ΣTн факт, ч': totals.plannedDutyTimeLabel,
+    'Апл, ед.': totals.vehiclesNeeded,
+    'Проверка to < Tн': '',
+  };
+
+  resultsCard.appendChild(
+    renderSimpleTable(
+      ['Маршрут', 'Qпл, т', 'Рд, т·км', 'Lобщ, км', 'ΣTн факт, ч', 'Апл, ед.', 'Проверка to < Tн'],
       [...resultRows, totalRow],
     ),
   );
@@ -832,6 +898,8 @@ const renderPlanView = () => {
 
   if (currentPlanMode === 'isolation') {
     container.appendChild(renderIsolationPlanning());
+  } else if (currentPlanMode === 'topographic') {
+    container.appendChild(renderTopographicPlanning());
   } else {
     const gridCard = createElement('div', 'plan-card');
     gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
