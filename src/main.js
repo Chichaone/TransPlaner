@@ -1,10 +1,13 @@
-import { methods } from './methods/index.js';
+import { methods } from './data/methods.js';
+import { isolatedPlanning } from './data/planning/isolated.js';
 
 const app = document.getElementById('app');
 
 let currentTab = 'calculators';
 let currentMethod = methods[0];
 let lastResults = null;
+let isFleetMode = false;
+let currentPlanMode = 'isolation';
 
 const shipments = [];
 const planAssignments = {};
@@ -59,10 +62,64 @@ const renderTabNavigation = () => {
   return nav;
 };
 
-const renderMethodSelector = () => {
+const renderModeToggle = () => {
+  const wrapper = createElement('div', 'mode-toggle');
+  const label = createElement('label', 'mode-toggle__label');
+  label.htmlFor = 'fleet-mode-toggle';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = isFleetMode;
+  checkbox.id = 'fleet-mode-toggle';
+  checkbox.className = 'mode-toggle__input';
+  checkbox.addEventListener('change', () => {
+    isFleetMode = checkbox.checked;
+    const nextMethods = methods.filter((method) => method.mode === (isFleetMode ? 'fleet' : 'single'));
+    if (nextMethods.length) {
+      currentMethod = nextMethods[0];
+    }
+    lastResults = null;
+    render();
+  });
+
+  const switchTrack = createElement('span', 'mode-toggle__switch');
+  switchTrack.appendChild(createElement('span', 'mode-toggle__handle'));
+  const title = createElement('span', 'mode-toggle__title', 'Группа авто');
+
+  label.append(checkbox, switchTrack, title);
+
+  const preview = createElement('div', 'mode-toggle__preview');
+  const oppositeMode = isFleetMode ? 'single' : 'fleet';
+  const oppositeMethods = methods.filter((method) => method.mode === oppositeMode);
+  const previewTitle = createElement(
+    'div',
+    'mode-toggle__preview-title',
+    oppositeMode === 'fleet' ? 'Предпоказ: группы авто' : 'Предпоказ: 1 авто'
+  );
+  const previewList = createElement('div', 'mode-toggle__preview-list');
+  const previewItems = oppositeMethods.slice(0, 3);
+
+  previewItems.forEach((method) => {
+    previewList.appendChild(createElement('span', 'mode-toggle__preview-pill', method.name));
+  });
+
+  if (oppositeMethods.length > previewItems.length) {
+    previewList.appendChild(
+      createElement('span', 'mode-toggle__preview-pill mode-toggle__preview-pill--more', `+${
+        oppositeMethods.length - previewItems.length
+      }`)
+    );
+  }
+
+  preview.append(previewTitle, previewList);
+  wrapper.append(label, preview);
+  return wrapper;
+};
+
+const renderMethodSelector = (availableMethods) => {
   const container = createElement('div', 'method-selector');
 
-  methods.forEach((method) => {
+  availableMethods.forEach((method) => {
     const button = createElement('button');
     button.type = 'button';
     button.textContent = method.name;
@@ -72,6 +129,10 @@ const renderMethodSelector = () => {
       lastResults = null;
       render();
     });
+
+    const badge = createElement('span', `method-badge method-badge--${method.mode}`);
+    badge.title = method.mode === 'fleet' ? 'Методика для группы автомобилей' : 'Методика для одного авто';
+    button.appendChild(badge);
     container.appendChild(button);
   });
 
@@ -182,8 +243,69 @@ const renderResults = () => {
     const titleCell = document.createElement('th');
     titleCell.scope = 'row';
     titleCell.textContent = name;
+
     const valueCell = document.createElement('td');
-    valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+
+    if (Array.isArray(value)) {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const headers = value.length && typeof value[0] === 'object' ? Object.keys(value[0]) : ['Значение'];
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      value.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        if (item && typeof item === 'object') {
+          headers.forEach((key) => {
+            nestedRow.appendChild(createElement('td', null, item[key] !== undefined ? String(item[key]) : ''));
+          });
+        } else {
+          nestedRow.appendChild(createElement('td', null, String(item)));
+        }
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else if (value && typeof value === 'object' && value.type === 'table') {
+      const nestedTable = document.createElement('table');
+      nestedTable.className = 'results-subtable';
+
+      const nestedThead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      value.headers.forEach((header) => {
+        headerRow.appendChild(createElement('th', null, header));
+      });
+      nestedThead.appendChild(headerRow);
+      nestedTable.appendChild(nestedThead);
+
+      const nestedTbody = document.createElement('tbody');
+      const columnKeys = value.columns || null;
+      const fallbackKeys = ['index', 'trips', 'tonnage', 'tonneKm', 'totalDistance', 'actualDutyTime'];
+
+      value.rows.forEach((item) => {
+        const nestedRow = document.createElement('tr');
+        const keysToUse = columnKeys && columnKeys.length ? columnKeys : fallbackKeys;
+
+        keysToUse.forEach((key) => {
+          const cellValue = item[key];
+          nestedRow.appendChild(createElement('td', null, cellValue !== undefined ? String(cellValue) : ''));
+        });
+
+        nestedTbody.appendChild(nestedRow);
+      });
+      nestedTable.appendChild(nestedTbody);
+      valueCell.appendChild(nestedTable);
+    } else {
+      valueCell.textContent = typeof value === 'number' ? value.toString() : String(value);
+    }
+
     row.append(titleCell, valueCell);
     tbody.appendChild(row);
   });
@@ -221,6 +343,29 @@ const renderPlanGrid = () => {
     tbody.appendChild(row);
   });
 
+  table.appendChild(tbody);
+  return table;
+};
+
+const renderSimpleTable = (headers, rows) => {
+  const table = createElement('table', 'shipments-table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  headers.forEach((title) => {
+    headerRow.appendChild(createElement('th', null, title));
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  rows.forEach((row) => {
+    const tr = document.createElement('tr');
+    headers.forEach((key) => {
+      const value = row[key];
+      tr.appendChild(createElement('td', null, value === undefined || value === null ? '' : String(value)));
+    });
+    tbody.appendChild(tr);
+  });
   table.appendChild(tbody);
   return table;
 };
@@ -295,6 +440,113 @@ const renderPlanAssignments = () => {
   return table;
 };
 
+const renderPlanModeNav = () => {
+  const nav = createElement('div', 'plan-mode-nav');
+  const modes = [
+    { id: 'isolation', label: 'Изолированное планирование' },
+    { id: 'requests', label: 'Журнал заявок' },
+  ];
+
+  modes.forEach((mode) => {
+    const button = createElement('button', currentPlanMode === mode.id ? 'active' : null, mode.label);
+    button.type = 'button';
+    button.addEventListener('click', () => {
+      if (currentPlanMode !== mode.id) {
+        currentPlanMode = mode.id;
+        render();
+      }
+    });
+    nav.appendChild(button);
+  });
+
+  return nav;
+};
+
+const renderIsolationPlanning = () => {
+  const { vehicleConfig, requests, routeDistances, planRows, totals } = isolatedPlanning.calculatePlan();
+  const section = createElement('div', 'plan-isolation');
+
+  const intro = createElement(
+    'p',
+    'plan-hint',
+    'Изолированный способ расчёта использует маятниковый маршрут с обратным холостым пробегом для каждой заявки и подбирает количество автомобилей так, чтобы перекрыть плановый объём.'
+  );
+  section.appendChild(intro);
+
+  const configCard = createElement('div', 'plan-card');
+  configCard.appendChild(createElement('h3', null, 'Параметры подвижного состава'));
+  const configList = createElement('ul', 'plan-config');
+  [
+    `Грузоподъёмность: ${vehicleConfig.payload} т`,
+    `Коэффициент использования грузоподъёмности: ${vehicleConfig.loadFactor}`,
+    `Время на погрузку-выгрузку: ${vehicleConfig.serviceTime} ч (0,1 ч/т)`,
+    `Среднетехническая скорость: ${vehicleConfig.technicalSpeed} км/ч`,
+  ].forEach((item) => {
+    configList.appendChild(createElement('li', null, item));
+  });
+  configCard.appendChild(configList);
+  section.appendChild(configCard);
+
+  const requestsCard = createElement('div', 'plan-card');
+  requestsCard.appendChild(createElement('h3', null, 'Исходные заявки и режим работы (табл. 17)'));
+  const requestRows = requests.map((item) => ({
+    Маршрут: item.route,
+    ГО: item.shipper,
+    ГП: item.consignee,
+    'Объём, т': item.volume,
+    'Время работы, ч': item.workTime,
+  }));
+  requestsCard.appendChild(
+    renderSimpleTable(['Маршрут', 'ГО', 'ГП', 'Объём, т', 'Время работы, ч'], requestRows),
+  );
+  section.appendChild(requestsCard);
+
+  const routesCard = createElement('div', 'plan-card');
+  routesCard.appendChild(createElement('h3', null, 'Исходные величины пробегов (табл. 18)'));
+  const distanceRows = Object.entries(routeDistances).map(([route, d]) => ({
+    Маршрут: route,
+    'lг, км': d.loadedDistance,
+    'lх, км': d.emptyDistance,
+    'lн1, км': d.zeroRun1,
+    'lн2, км': d.zeroRun2,
+  }));
+  routesCard.appendChild(
+    renderSimpleTable(['Маршрут', 'lг, км', 'lх, км', 'lн1, км', 'lн2, км'], distanceRows),
+  );
+  section.appendChild(routesCard);
+
+  const resultsCard = createElement('div', 'plan-card');
+  resultsCard.appendChild(createElement('h3', null, 'Плановые величины работы (табл. 19)'));
+
+  const resultRows = planRows.map((row) => ({
+    Маршрут: row.route,
+    'Qпл, т': row.plannedTonnageLabel,
+    'Рд, т·км': row.plannedTonKmLabel,
+    'Lобщ, км': row.plannedDistanceLabel,
+    'ΣTн факт, ч': row.plannedDutyTimeLabel,
+    'Апл, ед.': row.vehiclesNeeded,
+  }));
+
+  const totalRow = {
+    Маршрут: 'Итого',
+    'Qпл, т': totals.plannedTonnageLabel,
+    'Рд, т·км': totals.plannedTonKmLabel,
+    'Lобщ, км': totals.plannedDistanceLabel,
+    'ΣTн факт, ч': totals.plannedDutyTimeLabel,
+    'Апл, ед.': totals.vehiclesNeeded,
+  };
+
+  resultsCard.appendChild(
+    renderSimpleTable(
+      ['Маршрут', 'Qпл, т', 'Рд, т·км', 'Lобщ, км', 'ΣTн факт, ч', 'Апл, ед.'],
+      [...resultRows, totalRow],
+    ),
+  );
+
+  section.appendChild(resultsCard);
+  return section;
+};
+
 const renderShipmentForm = () => {
   const card = createElement('div', 'plan-card');
   card.appendChild(createElement('h3', null, 'Добавление заявки'));
@@ -362,24 +614,30 @@ const renderPlanView = () => {
   const heading = createElement('h2', null, 'Разработка плана перевозок');
   container.appendChild(heading);
 
-  const gridCard = createElement('div', 'plan-card');
-  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
-  gridCard.appendChild(renderPlanGrid());
-  container.appendChild(gridCard);
+  container.appendChild(renderPlanModeNav());
 
-  container.appendChild(renderShipmentForm());
+  if (currentPlanMode === 'isolation') {
+    container.appendChild(renderIsolationPlanning());
+  } else {
+    const gridCard = createElement('div', 'plan-card');
+    gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
+    gridCard.appendChild(renderPlanGrid());
+    container.appendChild(gridCard);
 
-  const tableCard = createElement('div', 'plan-card');
-  tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
-  tableCard.appendChild(renderPlanAssignments());
-  container.appendChild(tableCard);
+    container.appendChild(renderShipmentForm());
 
-  const hint = createElement(
-    'p',
-    'plan-hint',
-    'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
-  );
-  container.appendChild(hint);
+    const tableCard = createElement('div', 'plan-card');
+    tableCard.appendChild(createElement('h3', null, 'Исходные заявки на перевозку'));
+    tableCard.appendChild(renderPlanAssignments());
+    container.appendChild(tableCard);
+
+    const hint = createElement(
+      'p',
+      'plan-hint',
+      'Выберите метод расчёта для заявки и откройте форму, чтобы выполнить детальный расчёт по выбранной методике.'
+    );
+    container.appendChild(hint);
+  }
 
   return container;
 };
@@ -390,7 +648,17 @@ const render = () => {
 
   if (currentTab === 'calculators') {
     const calculatorsSection = createElement('section', 'calculators');
-    calculatorsSection.appendChild(renderMethodSelector());
+    const availableMethods = methods.filter(
+      (method) => method.mode === (isFleetMode ? 'fleet' : 'single'),
+    );
+
+    if (!availableMethods.some((method) => method.id === currentMethod.id)) {
+      currentMethod = availableMethods[0];
+      lastResults = null;
+    }
+
+    calculatorsSection.appendChild(renderModeToggle());
+    calculatorsSection.appendChild(renderMethodSelector(availableMethods));
     calculatorsSection.appendChild(renderDescription());
     calculatorsSection.appendChild(renderForm());
     app.appendChild(calculatorsSection);
