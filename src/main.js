@@ -782,6 +782,11 @@ const renderTopographicPlanning = () => {
   );
   section.appendChild(intro);
 
+  const gridCard = createElement('div', 'plan-card');
+  gridCard.appendChild(createElement('h3', null, 'Схема района перевозок'));
+  gridCard.appendChild(renderPlanGrid());
+  section.appendChild(gridCard);
+
   section.appendChild(renderVehicleConfigEditor(topographicDraft, setDraft));
   section.appendChild(renderRequestsEditor(topographicDraft, setDraft));
   section.appendChild(renderRouteDistancesEditor(topographicDraft, setDraft));
