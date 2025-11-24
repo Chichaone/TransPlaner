@@ -179,8 +179,6 @@ const fleetMethods = [
       const throughputDualGroups = Math.max(Math.floor(throughputDualRaw), 1);
 
       const essentialTripTime = safeDivide(loadedDistance2, technicalSpeed) + loadUnloadTime; // tен
-      const tripsPerTurn = 2; // Zе
-
       const perGroup = [];
       const perVehicle = [];
       let tonnageSum = 0;
@@ -195,12 +193,14 @@ const fleetMethods = [
         const intTurnovers = Math.floor(rawTurnovers); // Zоj = INT(Tмj/tо)
         const remainder = boundedTime - intTurnovers * turnaroundTime; // ΔTнj
 
-        const baseTrips = intTurnovers * tripsPerTurn; // Zе (без проверки последней ездки)
-        const extraTrip = remainder >= essentialTripTime ? 1 : 0; // проверка последнего оборота
+        let tripsOnLeg1 = intTurnovers; // Zе1 = [Tмj / tо]
+        let tripsOnLeg2 = intTurnovers; // Zе2 = [Tмj / tо]
 
-        const tripsOnLeg1 = intTurnovers; // Zе1
-        const tripsOnLeg2 = intTurnovers + extraTrip; // Zе2
-        const totalTrips = baseTrips + extraTrip; // Zе
+        if (remainder >= essentialTripTime) {
+          tripsOnLeg2 += 1; // дополнительная ездка на обратном плече
+        }
+
+        const totalTrips = tripsOnLeg1 + tripsOnLeg2; // Zе = Zе1 + Zе2
 
         const tonnage = payloadPerTrip * totalTrips; // Qнj
         const tonneKm = tonneKmTrip1 * tripsOnLeg1 + tonneKmTrip2 * tripsOnLeg2; // Pнj
